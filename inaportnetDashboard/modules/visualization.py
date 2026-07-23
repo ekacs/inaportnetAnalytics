@@ -34,14 +34,15 @@ PLOTLY_TEMPLATE = "plotly_white"
 
 def _base_layout(fig: go.Figure, title: str = "", height: int = 400) -> go.Figure:
     """Terapkan layout standar ke figure."""
+    is_dark = (PLOTLY_TEMPLATE == "plotly_dark")
+    title_color = "#38bdf8" if is_dark else COLORS["primary"]
+
     fig.update_layout(
         template=PLOTLY_TEMPLATE,
-        title=dict(text=title, font=dict(size=15, color=COLORS["primary"]), x=0),
+        title=dict(text=title, font=dict(size=15, color=title_color), x=0),
         height=height,
         margin=dict(l=40, r=20, t=50, b=40),
         font=dict(family="Inter, sans-serif", size=12),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
     )
     return fig
 

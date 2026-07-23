@@ -13,8 +13,10 @@ from modules.database      import (
     get_supabase_client, insert_pkk_records,
     fetch_pkk_records, is_connected, get_available_ports_from_db
 )
+from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Data Collection · Inaportnet", page_icon="📊", layout="wide")
+render_theme_selector()
 
 # ── CSS ───────────────────────────────────────────────────────
 st.markdown("""

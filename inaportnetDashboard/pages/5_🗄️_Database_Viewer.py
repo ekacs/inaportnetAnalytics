@@ -13,12 +13,15 @@ from modules.database import (
     fetch_pkk_records, generate_sql_dump
 )
 from modules.scraper import load_port_reference
+from modules.theme import render_theme_selector
 
 st.set_page_config(
     page_title="Database Viewer · Inaportnet",
     page_icon="🗄️",
     layout="wide"
 )
+
+render_theme_selector()
 
 # ── CSS ───────────────────────────────────────────────────────
 st.markdown("""

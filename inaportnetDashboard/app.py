@@ -5,6 +5,7 @@ app.py — Halaman Utama Inaportnet Analytics Dashboard
 import streamlit as st
 import pandas as pd
 from modules.database import is_connected
+from modules.theme import render_theme_selector
 
 # ──────────────────────────────────────────────────────────────
 # Page config
@@ -15,6 +16,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+render_theme_selector()
 
 # ──────────────────────────────────────────────────────────────
 # Custom CSS

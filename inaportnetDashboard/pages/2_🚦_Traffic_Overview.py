@@ -15,8 +15,10 @@ from modules.visualization import (
     plot_trend_monthly, plot_trend_daily, plot_trend_hourly,
 )
 from modules.database import is_connected
+from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Traffic Overview · Inaportnet", page_icon="🚦", layout="wide")
+render_theme_selector()
 
 st.markdown("""
 <style>

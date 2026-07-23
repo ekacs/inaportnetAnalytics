@@ -16,8 +16,10 @@ from modules.visualization import (
     plot_sla_trend,
 )
 from modules.database import is_connected
+from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Service Performance · Inaportnet", page_icon="📋", layout="wide")
+render_theme_selector()
 
 st.markdown("""
 <style>
