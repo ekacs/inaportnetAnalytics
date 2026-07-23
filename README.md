@@ -12,36 +12,66 @@ Prior to analysis, data preprocessing was conducted to examine the dataset struc
 
 # Project Structure
 
-inaportnet-analysis
+inaportnetAnalytics/
 │
-
-├── data
-
-│   ├── raw
-
-│   └── processed
-
+├── data/                          # Port reference data
+│   └── port_code.xlsx
 │
-
-├── scripts
-
-│   ├── data_collection.py
-
-│   ├── data_preprocessing.py
-
-│   ├── descriptive_stats.py
-
-│   ├── port_performance_calculation.py
-
-│   ├── quadrant_analysis.py
-
+├── scripts/                       # Analysis scripts (research pipeline)
+│   ├── 00_data_collection.py
+│   ├── 01_data_preprocessing.py
+│   ├── 02_descriptive_stats.py
+│   ├── 03_port_performance_calculation.py
+│   └── 04_quadrant_analysis.py
 │
-
-├── results
-
+├── outputs/                       # Generated charts and visualizations
 │
-
+├── papers/                        # Research papers and reports
+│
+├── inaportnetDashboard/           # Interactive Streamlit Web Dashboard
+│   ├── app.py                     # Main home page
+│   ├── requirements.txt
+│   ├── supabase_schema.sql        # Database schema (run in Supabase SQL Editor)
+│   ├── .streamlit/
+│   │   └── secrets.toml           # Supabase credentials (fill this!)
+│   ├── modules/
+│   │   ├── database.py            # Supabase CRUD operations
+│   │   ├── scraper.py             # Web scraping functions
+│   │   ├── preprocessing.py       # Data preprocessing
+│   │   ├── analysis.py            # Performance index calculations
+│   │   └── visualization.py       # Plotly interactive charts
+│   ├── pages/
+│   │   ├── 1_📊_Data_Collection.py
+│   │   ├── 2_🚦_Traffic_Overview.py
+│   │   ├── 3_📋_Service_Performance.py
+│   │   └── 4_🗺️_Port_Classification.py
+│   └── inaportnetdashboard-env/   # Python virtual environment
+│
 └── README.md
+
+# Running the Dashboard
+
+```powershell
+# Masuk ke folder dashboard
+cd d:\Documents\inaportnetAnalytics\inaportnetDashboard
+
+# Jalankan Streamlit (gunakan python -m streamlit)
+.\inaportnetdashboard-env\Scripts\python.exe -m streamlit run app.py
+
+# App tersedia di: http://localhost:8501
+```
+
+> **Catatan:** Gunakan `python -m streamlit` (bukan `streamlit` langsung) karena virtual environment dipindahkan dari lokasi asal.
+
+# Setup Supabase (Opsional)
+
+1. Buat project di https://supabase.com
+2. Jalankan `supabase_schema.sql` di SQL Editor Supabase
+3. Isi kredensial di `inaportnetDashboard/.streamlit/secrets.toml`:
+   ```toml
+   SUPABASE_URL = "https://xxxx.supabase.co"
+   SUPABASE_KEY = "your-anon-key"
+   ```
 
 # Potential insight
 
@@ -49,4 +79,4 @@ This analytical framework provides traffic classification based on performance i
 
 # Future Improvement
 
-This project can be further enhanced by developing an interactive dashboard visualization and applying predictive service demand modelling to forecast and estimating workforce requrierments.
+This project can be further enhanced by developing an interactive dashboard visualization and applying predictive service demand modelling to forecast and estimating workforce requirements.
