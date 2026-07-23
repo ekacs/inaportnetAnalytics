@@ -80,6 +80,7 @@ flowchart TD
 ## 🔄 2. Detail Alur Kerja Per Tahap
 
 ### Tahap 1: Pengumpulan & Penginputan Data (*Data Collection*)
+
 Aplikasi mendukung 3 mode penginputan data pada halaman **`1_📊_Data_Collection.py`**:
 
 1. **Web Scraping Direct (Inaportnet Portal)**
@@ -95,11 +96,16 @@ Aplikasi mendukung 3 mode penginputan data pada halaman **`1_📊_Data_Collectio
 ---
 
 ### Tahap 2: Pemrosesan Data (*Preprocessing Engine*)
+
 Modul [`modules/preprocessing.py`](file:///d:/Documents/inaportnetAnalytics/inaportnetDashboard/modules/preprocessing.py) secara otomatis mengeksekusi pipeline berikut:
 
-$$\text{approval\_time} = \text{response\_time} - \text{submission\_time}$$
+$$
+\text{approval\_time} = \text{response\_time} - \text{submission\_time}
+$$
 
-$$\text{approval\_minutes} = \frac{\text{total\_seconds}(\text{approval\_time})}{60}$$
+$$
+\text{approval\_minutes} = \frac{\text{total\_seconds}(\text{approval\_time})}{60}
+$$
 
 - **Ekstraksi Komponen Waktu:** Tahun, Kuartal (`Q1`–`Q4`), Bulan (`1`–`12`), Nama Hari (`Monday`–`Sunday`), dan Jam (`00`–`23`).
 - **Filtering Scope:** Otomatis membatasi analisis pada scope tahun 2025.
@@ -112,16 +118,19 @@ $$\text{approval\_minutes} = \frac{\text{total\_seconds}(\text{approval\_time})}
 Modul [`modules/analysis.py`](file:///d:/Documents/inaportnetAnalytics/inaportnetDashboard/modules/analysis.py) menjalankan 3 cabang analisis utama:
 
 #### A. Traffic Analytics
+
 - Menghitung **National Traffic Share (%)** per pelabuhan.
 - Mengelompokkan tren transaksi per Kuartal, Bulan, Hari dalam seminggu, dan Jam dalam sehari (dengan *highlight* jam kerja 08:00–17:00).
 
 #### B. Service Performance & SLA Analytics
+
 - Target SLA standar: **$\le 30$ menit** per persetujuan PKK.
 - Kategorisasi distribusi waktu respons:
   - `< 30 mnt`, `30-60 mnt`, `1-2 jam`, `2-6 jam`, `6-12 jam`, `12-24 jam`, `> 24 jam`.
 - Identifikasi Top 10 pelabuhan dengan waktu approval terlama.
 
 #### C. Port Classification & Composite Index Engine
+
 Setiap pelabuhan diukur menggunakan 4 sub-indeks yang dinormalisasi dengan **Winsorized Min-Max (P5 - P95)**:
 
 1. **Compliance Index ($I_{\text{comp}}$):** % PKK yang memenuhi SLA ($\le 30$ mnt). *(Higher is better)*
@@ -131,7 +140,9 @@ Setiap pelabuhan diukur menggunakan 4 sub-indeks yang dinormalisasi dengan **Win
 
 **Rumus Composite Performance Index (CPI):**
 
-$$\text{CPI} = \frac{I_{\text{comp}} + I_{\text{eff}} + I_{\text{cons}} + I_{\text{rob}}}{4}$$
+$$
+\text{CPI} = \frac{I_{\text{comp}} + I_{\text{eff}} + I_{\text{cons}} + I_{\text{rob}}}{4}
+$$
 
 **Matrix Klasifikasi 4 Kuadran (Median Threshold):**
 
@@ -146,16 +157,17 @@ quadrantChart
     quadrant-4 Congested Port
 ```
 
-| Nama Kuadran | Kriteria Volume | Kriteria Indeks (CPI) | Karakteristik Operasional |
-| :--- | :--- | :--- | :--- |
-| 🟢 **Benchmark Port** | $\ge \text{Median Volume}$ | $\ge \text{Median CPI}$ | Pelabuhan terbaik: volume tinggi dan performa sangat efisien. |
-| 🔵 **Efficient Port** | $< \text{Median Volume}$ | $\ge \text{Median CPI}$ | Pelabuhan efisien dengan beban kerja relatif kecil. |
-| 🟠 **Developing Port** | $< \text{Median Volume}$ | $< \text{Median CPI}$ | Perlu pengembangan kapasitas & efisiensi layanan. |
-| 🔴 **Congested Port** | $\ge \text{Median Volume}$ | $< \text{Median CPI}$ | Padat transaksi namun terjadi bottleneck persetujuan. |
+| Nama Kuadran                | Kriteria Volume              | Kriteria Indeks (CPI)     | Karakteristik Operasional                                     |
+| :-------------------------- | :--------------------------- | :------------------------ | :------------------------------------------------------------ |
+| 🟢**Benchmark Port**  | $\ge \text{Median Volume}$ | $\ge \text{Median CPI}$ | Pelabuhan terbaik: volume tinggi dan performa sangat efisien. |
+| 🔵**Efficient Port**  | $< \text{Median Volume}$   | $\ge \text{Median CPI}$ | Pelabuhan efisien dengan beban kerja relatif kecil.           |
+| 🟠**Developing Port** | $< \text{Median Volume}$   | $< \text{Median CPI}$   | Perlu pengembangan kapasitas & efisiensi layanan.             |
+| 🔴**Congested Port**  | $\ge \text{Median Volume}$ | $< \text{Median CPI}$   | Padat transaksi namun terjadi bottleneck persetujuan.         |
 
 ---
 
 ### Tahap 4: Antarmuka & Ekspor (*UI & Export*)
+
 - Visualisasi dibuat secara interaktif menggunakan **Plotly** di modul [`modules/visualization.py`](file:///d:/Documents/inaportnetAnalytics/inaportnetDashboard/modules/visualization.py).
 - Pengguna dapat mengekspor data mentah maupun data hasil agregasi/klasifikasi ke format **CSV** dan **Excel (.xlsx)**.
 

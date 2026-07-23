@@ -1,15 +1,22 @@
 #TRAFFFIC ANALYSIS
+import pandas as pd
+
+code_col = 'port_code' if 'port_code' in df_join.columns else 'KODE'
+port_col = 'port' if 'port' in df_join.columns else 'PELABUHAN'
+
 #total number of PKK service
 total_pkk = df_join.shape[0]
 print("Total PKK service on national:", total_pkk)
 
 #average traffic per months
 traffic_port = (
-    df_join.groupby(['KODE','PELABUHAN'])
+    df_join.groupby([code_col, port_col])
     .size()
     .reset_index(name='total_pkk')
+    .rename(columns={port_col: 'PELABUHAN'})
     .sort_values('total_pkk', ascending=False)
 )
+
 traffic_port.head(10)
 
 #national traffic share on each port

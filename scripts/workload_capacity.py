@@ -2,14 +2,23 @@
 import pandas as pd
 import numpy as np
 
+sub_col  = 'submission' if 'submission' in df_join.columns else 'waktu_permohonan_real'
+resp_col = 'response' if 'response' in df_join.columns else 'waktu_respon'
+
 # approval times in minutes
-df_join['processing_time_minutes'] = (df_join['waktu_respon'] - df_join['waktu_permohonan_real']).dt.total_seconds()/60
+df_join['processing_time_minutes'] = (pd.to_datetime(df_join[resp_col]) - pd.to_datetime(df_join[sub_col])).dt.total_seconds()/60
+
+submission_dates = pd.to_datetime(df_join[sub_col])
 
 daily_workload = (
-    df_join.groupby(df_join['waktu_permohonan_real'].dt.date)
+    df_join.groupby(submission_dates.dt.date)
     .size()
     .reset_index(name='jumlah_permohonan')
+    .rename(columns={sub_col: 'waktu_permohonan_real', 'index': 'waktu_permohonan_real'})
 )
+if 'waktu_permohonan_real' not in daily_workload.columns and len(daily_workload.columns) >= 2:
+    daily_workload.columns = ['waktu_permohonan_real', 'jumlah_permohonan']
+
 
 import matplotlib.pyplot as plt
 

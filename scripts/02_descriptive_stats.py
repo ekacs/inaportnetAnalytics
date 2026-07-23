@@ -1,4 +1,5 @@
 #descriptive statistics
+import pandas as pd
 
 #descriptive statistics - approval
 approval_stats = pd.DataFrame({
@@ -154,7 +155,7 @@ import numpy as np
 
 data = volume_port['volume']
 Per95_volume = volume_port['volume'].quantile(0.95)
-data95 = volume_pelabuhan[volume_port['volume']<Per95_volume]
+data95 = volume_port[volume_port['volume']<Per95_volume]
 data95 = data95['volume']
 
 print(Per95_volume)
@@ -304,7 +305,7 @@ fig, axes = plt.subplots(
 
 for i, col in enumerate(index_cols):
 
-    data = summary_pelabuhan[col].dropna()
+    data = summary_port[col].dropna()
 
     # Statistik
     mean = data.mean()

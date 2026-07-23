@@ -1,8 +1,14 @@
 #PORT CLASSIFICATION
-port_metrics = df_join.groupby('PELABUHAN').agg(
-    total_request=('nomor_pkk','count'),
-    avg_processing_time=('processing_time_minutes','mean')
-).reset_index()
+import pandas as pd
+
+port_col = 'port' if 'port' in df_join.columns else 'PELABUHAN'
+pkk_col = 'PKK_number' if 'PKK_number' in df_join.columns else 'nomor_pkk'
+time_col = 'approval_minutes' if 'approval_minutes' in df_join.columns else 'processing_time_minutes'
+
+port_metrics = df_join.groupby(port_col).agg(
+    total_request=(pkk_col, 'count'),
+    avg_processing_time=(time_col, 'mean')
+).reset_index().rename(columns={port_col: 'PELABUHAN'})
 
 port_metrics
 

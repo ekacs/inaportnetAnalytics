@@ -1,4 +1,9 @@
 #service performance
+import pandas as pd
+
+code_col = 'port_code' if 'port_code' in df_join.columns else 'KODE'
+port_col = 'port' if 'port' in df_join.columns else 'PELABUHAN'
+
 #national statistics on service performance
 national_service = {
     "total_permohonan": int(df_join.shape[0]),
@@ -8,7 +13,6 @@ national_service = {
     "p95_hours": df_join['approval_hours'].quantile(0.95),
     "max_hours": df_join['approval_hours'].max()
 }
-import pandas as pd
 
 # Mengonversi dictionary menjadi DataFrame
 df_national_service = pd.DataFrame(list(national_service.items()), columns=['Metric', 'Value'])
@@ -19,7 +23,8 @@ df_national_service
 
 service_port = (
     df_join
-    .groupby(['KODE','PELABUHAN'])
+    .groupby([code_col, port_col])
+
     .agg(
         total_permohonan=('approval_hours','count'),
         mean_hours=('approval_hours','mean'),
