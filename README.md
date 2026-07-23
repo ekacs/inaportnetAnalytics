@@ -1,11 +1,11 @@
 # Inaportnet analytics - Indonesian Port 2025
 
-This project was conducted to analyze the one of all port services across 259 port in Indonesia during 2025.
+This project was conducted to analyze one of all port services across 259 ports in Indonesia during 2025.
 The objective is to evaluate service performance based on service level agreement compliance and classify the port efficiency according to operational workload and average approval time.
 
 The analysis begins with data collection through web-scraping from the Inaportnet monitoring portal:
 https://monitoring-inaportnet.dephub.go.id/
-The data collection script is included in this repository
+The data collection script is included in this repository.
 The dataset covers PKK (Ship Arrival Approval) records collected throughout 2025.
 Prior to analysis, data preprocessing was conducted to examine the dataset structure and calculate approval time based on the time difference between request submission and the approval response.
 
@@ -33,7 +33,7 @@ inaportnetAnalytics/
 │   ├── requirements.txt
 │   ├── supabase_schema.sql        # Database schema (run in Supabase SQL Editor)
 │   ├── .streamlit/
-│   │   └── secrets.toml           # Supabase credentials (fill this!)
+│   │   └── secrets.toml           # Supabase credentials
 │   ├── modules/
 │   │   ├── database.py            # Supabase CRUD operations
 │   │   ├── scraper.py             # Web scraping functions
@@ -45,7 +45,7 @@ inaportnetAnalytics/
 │   │   ├── 2_🚦_Traffic_Overview.py
 │   │   ├── 3_📋_Service_Performance.py
 │   │   └── 4_🗺️_Port_Classification.py
-│   └── inaportnetdashboard-env/   # Python virtual environment
+│   └── venv/                      # Python virtual environment
 │
 └── README.md
 
@@ -55,13 +55,14 @@ inaportnetAnalytics/
 # Masuk ke folder dashboard
 cd d:\Documents\inaportnetAnalytics\inaportnetDashboard
 
-# Jalankan Streamlit (gunakan python -m streamlit)
-.\inaportnetdashboard-env\Scripts\python.exe -m streamlit run app.py
+# Aktifkan virtual environment (PowerShell)
+. .\venv\Scripts\Activate.ps1
+
+# Jalankan Streamlit
+python -m streamlit run app.py
 
 # App tersedia di: http://localhost:8501
 ```
-
-> **Catatan:** Gunakan `python -m streamlit` (bukan `streamlit` langsung) karena virtual environment dipindahkan dari lokasi asal.
 
 # Setup Supabase (Opsional)
 
@@ -73,10 +74,10 @@ cd d:\Documents\inaportnetAnalytics\inaportnetDashboard
    SUPABASE_KEY = "your-anon-key"
    ```
 
-# Potential insight
+# Potential Insight
 
-This analytical framework provides traffic classification based on performance index and service volume
+This analytical framework provides traffic classification based on performance index and service volume.
 
 # Future Improvement
 
-This project can be further enhanced by developing an interactive dashboard visualization and applying predictive service demand modelling to forecast and estimating workforce requirements.
+This project can be further enhanced by developing an interactive dashboard visualization and applying predictive service demand modelling to forecast and estimate workforce requirements.

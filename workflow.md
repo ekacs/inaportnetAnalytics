@@ -207,8 +207,11 @@ Buka PowerShell di lokasi project dan jalankan command berikut:
 # Masuk ke folder dashboard
 cd d:\Documents\inaportnetAnalytics\inaportnetDashboard
 
+# Aktifkan virtual environment
+. .\venv\Scripts\Activate.ps1
+
 # Jalankan Streamlit
-.\inaportnetdashboard-env\Scripts\python.exe -m streamlit run app.py
+python -m streamlit run app.py
 ```
 
 Aplikasi akan otomatis terbuka di browser pada alamat **`http://localhost:8501`**.
