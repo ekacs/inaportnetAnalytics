@@ -245,3 +245,24 @@ with col_info:
         "⚠️ **Konfigurasi Supabase**\n\n"
         "Isi kredensial di `.streamlit/secrets.toml` agar data dapat disimpan ke database."
     )
+
+# ──────────────────────────────────────────────────────────────
+# Developer Footer & Buy Coffee Section
+# ──────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="background: linear-gradient(135deg, #0f2d52 0%, #1a4a7a 100%); color: white; padding: 1.5rem 2rem; border-radius: 14px; text-align: center; margin-top: 2.5rem; box-shadow: 0 4px 15px rgba(15, 45, 82, 0.15);">
+    <h3 style="margin: 0 0 0.5rem 0; color: #ffffff; font-size: 1.2rem;">🚀 Built for Indonesian Maritime Data Excellence</h3>
+    <p style="font-size: 0.95rem; opacity: 0.9; margin-bottom: 0.8rem;">
+        Crafted with passion & precision by 
+        <a href="https://github.com/ekacs" target="_blank" style="color: #64ffda; text-decoration: none; font-weight: 600;">@ekacs</a> 
+        & 
+        <a href="https://github.com/rifkiwijaya12" target="_blank" style="color: #64ffda; text-decoration: none; font-weight: 600;">@rifkiw</a>
+    </p>
+    <p style="font-size: 0.85rem; opacity: 0.8; max-width: 650px; margin: 0 auto 1.2rem auto; line-height: 1.4;">
+        Transforming Inaportnet port operational data into actionable strategic insights across 259 ports in Indonesia. 🌊⚓
+    </p>
+    <div style="display: inline-block; background: rgba(255,255,255,0.12); padding: 0.6rem 1.4rem; border-radius: 30px; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2);">
+        ☕ <b>Suka dengan platform ini?</b> Traktir kopi untuk kami biar makin semangat berinovasi!
+    </div>
+</div>
+""", unsafe_allow_html=True)

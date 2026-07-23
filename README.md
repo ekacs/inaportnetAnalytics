@@ -84,3 +84,18 @@ This analytical framework provides traffic classification based on performance i
 # Future Improvement
 
 This project can be further enhanced by developing an interactive dashboard visualization and applying predictive service demand modelling to forecast and estimate workforce requirements.
+
+---
+
+# 🚀 Authors & Contributors
+
+Crafted with passion & precision for Indonesian Maritime Logistics Analytics:
+
+* **Eka** — [@ekacs](https://github.com/ekacs)
+* **Rifki** — [@rifkiw](https://github.com/rifkiwijaya12)
+
+---
+
+### ☕ Support & Buy Us a Coffee
+
+Jika platform ini membantu pekerjaan atau riset Anda, dukung kami dengan traktir kopi agar makin semangat memperbarui & menambah fitur-fitur baru! ☕🚀
