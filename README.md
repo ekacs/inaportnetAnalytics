@@ -12,6 +12,7 @@ Prior to analysis, data preprocessing was conducted to examine the dataset struc
 
 # Project Structure
 
+```text
 inaportnetAnalytics/
 │
 ├── data/                          # Port reference data
@@ -44,10 +45,12 @@ inaportnetAnalytics/
 │   │   ├── 1_📊_Data_Collection.py
 │   │   ├── 2_🚦_Traffic_Overview.py
 │   │   ├── 3_📋_Service_Performance.py
-│   │   └── 4_🗺️_Port_Classification.py
+│   │   ├── 4_🗺️_Port_Classification.py
+│   │   └── 5_🗄️_Database_Viewer.py
 │   └── venv/                      # Python virtual environment
 │
 └── README.md
+```
 
 # Running the Dashboard
 
