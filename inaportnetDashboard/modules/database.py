@@ -300,8 +300,15 @@ def fetch_pkk_records_paginated(
         response = q.execute()
         total_count = response.count if response.count is not None else 0
 
+        DEFAULT_COLS = [
+            "PKK_number", "vessel_name", "port_code", "port", "service",
+            "submission", "response", "simpadu", "GMT", "approval_hours",
+            "approval_minutes", "year", "quarter", "month", "date", "day",
+            "hour", "angkutan"
+        ]
+
         if not response.data:
-            return pd.DataFrame(), total_count
+            return pd.DataFrame(columns=DEFAULT_COLS), total_count
 
         df = pd.DataFrame(response.data)
 

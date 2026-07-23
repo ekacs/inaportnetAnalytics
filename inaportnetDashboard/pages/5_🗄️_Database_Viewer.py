@@ -170,7 +170,12 @@ with col_f2:
     selected_port_codes = [port_code_of[lbl] for lbl in selected_ports_lbl if lbl in port_code_of]
 
 with col_f3:
-    year_sel = st.selectbox("📅 Tahun", [None, 2025, 2024], index=1)
+    year_sel = st.selectbox(
+        "📅 Tahun",
+        options=[None, 2025, 2024],
+        index=0,
+        format_func=lambda x: "Semua Tahun" if x is None else str(x)
+    )
 
 col_f4, col_f5, col_f6 = st.columns([1.5, 1, 1])
 
@@ -223,26 +228,36 @@ with col_btn_load:
         else:
             st.warning("⚠️ Tabel kosong, tidak ada data untuk dimuat.")
 
-if df_db_view.empty:
-    st.warning("⚠️ Tidak ada data ditemukan berdasarkan kombinasi pencarian/filter di atas.")
+if total_filtered_count == 0 or df_db_view.empty:
+    st.warning("⚠️ **Database Kosong atau Tidak Ada Data Terfilter**")
+    st.info(
+        "💡 **Petunjuk:** Jika Supabase baru dikonfigurasi dan masih kosong, silakan buka halaman "
+        "**📊 Data Collection** lalu jalankan **Mulai Scraping** atau **Upload File** (pastikan centang 'Simpan otomatis ke Supabase') "
+        "agar data tersimpan ke database."
+    )
 else:
+    # Filter config keys dynamically
+    available_cols = set(df_db_view.columns)
+    col_cfg = {
+        "PKK_number": st.column_config.TextColumn("Nomor PKK", width="medium"),
+        "vessel_name": st.column_config.TextColumn("Nama Kapal", width="medium"),
+        "port_code": st.column_config.TextColumn("Kode Port", width="small"),
+        "port": st.column_config.TextColumn("Pelabuhan", width="medium"),
+        "service": st.column_config.TextColumn("Layanan", width="small"),
+        "submission": st.column_config.DatetimeColumn("Permohonan", format="YYYY-MM-DD HH:mm"),
+        "response": st.column_config.DatetimeColumn("Persetujuan", format="YYYY-MM-DD HH:mm"),
+        "approval_minutes": st.column_config.NumberColumn("Approval (mnt)", format="%.2f"),
+        "approval_hours": st.column_config.NumberColumn("Approval (jam)", format="%.2f"),
+        "angkutan": st.column_config.TextColumn("Angkutan", width="small"),
+    }
+    cfg_used = {k: v for k, v in col_cfg.items() if k in available_cols}
+
     # Render Interactive DataFrame
     st.dataframe(
         df_db_view,
         use_container_width=True,
         height=450,
-        column_config={
-            "PKK_number": st.column_config.TextColumn("Nomor PKK", width="medium"),
-            "vessel_name": st.column_config.TextColumn("Nama Kapal", width="medium"),
-            "port_code": st.column_config.TextColumn("Kode Port", width="small"),
-            "port": st.column_config.TextColumn("Pelabuhan", width="medium"),
-            "service": st.column_config.TextColumn("Layanan", width="small"),
-            "submission": st.column_config.DatetimeColumn("Permohonan", format="YYYY-MM-DD HH:mm"),
-            "response": st.column_config.DatetimeColumn("Persetujuan", format="YYYY-MM-DD HH:mm"),
-            "approval_minutes": st.column_config.NumberColumn("Approval (mnt)", format="%.2f"),
-            "approval_hours": st.column_config.NumberColumn("Approval (jam)", format="%.2f"),
-            "angkutan": st.column_config.TextColumn("Angkutan", width="small"),
-        }
+        column_config=cfg_used
     )
 
 # ════════════════════════════════════════════════════════════════
