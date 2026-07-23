@@ -113,6 +113,7 @@ with st.sidebar:
     st.page_link("pages/2_🚦_Traffic_Overview.py",              label="🚦 Traffic Overview")
     st.page_link("pages/3_📋_Service_Performance.py",           label="📋 Service Performance")
     st.page_link("pages/4_🗺️_Port_Classification.py",           label="🗺️ Port Classification")
+    st.page_link("pages/5_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
     st.markdown("---")
 
     # Status koneksi database
@@ -177,7 +178,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
 # ──────────────────────────────────────────────────────────────
 st.markdown("### 📌 Navigasi Halaman")
 st.markdown("""
-<div class="nav-grid">
+<div class="nav-grid" style="grid-template-columns: repeat(5, 1fr);">
     <div class="nav-card">
         <div class="icon">📊</div>
         <div class="title">Data Collection</div>
@@ -196,7 +197,12 @@ st.markdown("""
     <div class="nav-card">
         <div class="icon">🗺️</div>
         <div class="title">Port Classification</div>
-        <div class="desc">Analisis kuadran dan ranking composite performance index</div>
+        <div class="desc">Analisis kuadran dan ranking composite index</div>
+    </div>
+    <div class="nav-card">
+        <div class="icon">🗄️</div>
+        <div class="title">Database Viewer</div>
+        <div class="desc">Inspeksi database live, pencarian, dan unduh CSV/Excel/JSON/SQL</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
