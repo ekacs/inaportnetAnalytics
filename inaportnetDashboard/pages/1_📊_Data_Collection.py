@@ -55,6 +55,7 @@ footer{visibility:hidden;} #MainMenu{visibility:hidden;}
 """, unsafe_allow_html=True)
 
 # ── Sidebar ───────────────────────────────────────────────────
+# ── Sidebar ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 🚢 Inaportnet Analytics")
     st.markdown("---")
@@ -67,7 +68,11 @@ with st.sidebar:
     st.markdown("---")
     db_ok = is_connected()
     st.markdown("**Status Database**")
-    st.success("✅ Supabase Terhubung") if db_ok else st.warning("⚠️ Supabase Tidak Terhubung")
+    if db_ok:
+        st.success("✅ Supabase Terhubung")
+    else:
+        st.warning("⚠️ Supabase Tidak Terhubung")
+
     if "df" in st.session_state and not st.session_state["df"].empty:
         st.markdown("**Data Sesi**")
         st.success(f"✅ {len(st.session_state['df']):,} record")
@@ -165,14 +170,19 @@ with tab_scrape:
 
     if btn_scrape:
         if not selected_port_codes:
+            st.toast("❌ Pilih minimal satu pelabuhan.", icon="⚠️")
             st.error("❌ Pilih minimal satu pelabuhan.")
         elif not angkutan_codes:
+            st.toast("❌ Pilih minimal satu jenis angkutan.", icon="⚠️")
             st.error("❌ Pilih minimal satu jenis angkutan.")
         else:
             # ── Progress containers ──
             status_txt   = st.empty()
             progress_bar = st.progress(0)
             result_area  = st.empty()
+
+            # ── List log error untuk popup ──
+            scraping_errors = []
 
             # ── Callbacks ──
             def cb_progress1(cur, tot):
@@ -187,6 +197,11 @@ with tab_scrape:
             def cb_status2(msg):
                 status_txt.info(f"**Stage 2 — Waktu Approval**\n\n{msg}")
 
+            def cb_error(err_msg):
+                scraping_errors.append(err_msg)
+                # Tampilkan popup toast langsung per error
+                st.toast(f"⚠️ {err_msg}")
+
             # ── Jalankan scraping ──
             with st.spinner("Scraping sedang berjalan..."):
                 df_raw = run_full_scraping(
@@ -199,10 +214,18 @@ with tab_scrape:
                     status_stage1=cb_status1,
                     progress_stage2=cb_progress2,
                     status_stage2=cb_status2,
+                    error_callback=cb_error,
                 )
 
             progress_bar.empty()
             status_txt.empty()
+
+            # Jika ada log error selama proses, tampilkan popup toast rangkuman
+            if scraping_errors:
+                st.toast(f"⚠️ Terdapat {len(scraping_errors)} peringatan/error selama proses scraping.", icon="🚨")
+                with st.expander(f"⚠️ Detail Log Error Scraping ({len(scraping_errors)} item)"):
+                    for err in scraping_errors:
+                        st.markdown(f"- `{err}`")
 
             if df_raw.empty:
                 st.warning("⚠️ Tidak ada data yang berhasil diambil. Periksa koneksi atau parameter.")
@@ -216,6 +239,7 @@ with tab_scrape:
                 if n_dups > 0:
                     st.info(f"🧹 **{n_dups:,} record duplikat** terdeteksi dan dibersihkan dari hasil scraping.")
                 st.success(f"✅ **{len(df_processed):,} record bersih** berhasil diambil dan diproses.")
+                st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
                 result_area.dataframe(df_processed.head(10), use_container_width=True)
 
                 # Simpan ke Supabase
@@ -224,8 +248,10 @@ with tab_scrape:
                         res = insert_pkk_records(df_processed)
                     if res["success"]:
                         st.success(f"💾 **{res['inserted']:,} record** tersimpan ke Supabase.")
+                        st.toast(f"💾 {res['inserted']:,} record tersimpan ke Supabase.", icon="✅")
                     else:
                         st.error(f"❌ Gagal menyimpan ke Supabase: {res['error']}")
+                        st.toast(f"❌ Gagal simpan DB: {res['error']}", icon="❌")
                 elif save_to_db and not db_ok:
                     st.warning("⚠️ Supabase tidak terhubung. Data hanya tersimpan di sesi ini.")
 

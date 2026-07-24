@@ -20,6 +20,7 @@ def scrape_pkk_list(
     months: List[int],
     progress_callback: Optional[Callable] = None,
     status_callback: Optional[Callable] = None,
+    error_callback: Optional[Callable[[str], None]] = None,
 ) -> pd.DataFrame:
     """
     Tahap 1: Mengambil daftar nomor PKK untuk setiap kombinasi
@@ -39,6 +40,8 @@ def scrape_pkk_list(
         Dipanggil setiap iterasi untuk update progress bar.
     status_callback : callable(message: str)
         Dipanggil untuk update teks status.
+    error_callback : callable(message: str), optional
+        Dipanggil jika terjadi error/gagal ambil per iterasi.
 
     Returns
     -------
@@ -67,6 +70,8 @@ def scrape_pkk_list(
                 try:
                     r = requests.get(url, timeout=30)
                     if r.status_code != 200:
+                        if error_callback:
+                            error_callback(f"HTTP {r.status_code}: Gagal mengambil daftar PKK {port} | {svc.upper()} | Bulan {month:02d}/{year}")
                         continue
                     js = r.json()
                     if not js.get("data"):
@@ -76,7 +81,13 @@ def scrape_pkk_list(
                     df["pelabuhan"] = port
                     df["angkutan"] = svc
                     hasil.append(df)
-                except Exception:
+                except requests.exceptions.Timeout:
+                    if error_callback:
+                        error_callback(f"Timeout: Koneksi terputus saat mengambil {port} | Bulan {month:02d}")
+                    continue
+                except Exception as e:
+                    if error_callback:
+                        error_callback(f"Error {port} ({svc} M{month:02d}): {str(e)}")
                     continue
 
     if not hasil:
@@ -94,6 +105,7 @@ def scrape_approval_times(
     df_pkk: pd.DataFrame,
     progress_callback: Optional[Callable] = None,
     status_callback: Optional[Callable] = None,
+    error_callback: Optional[Callable[[str], None]] = None,
 ) -> pd.DataFrame:
     """
     Tahap 2: Mengambil waktu permohonan dan persetujuan untuk setiap nomor PKK.
@@ -104,6 +116,7 @@ def scrape_approval_times(
         DataFrame dengan kolom 'nomor_pkk'.
     progress_callback : callable(current, total)
     status_callback : callable(message: str)
+    error_callback : callable(message: str), optional
 
     Returns
     -------
@@ -115,22 +128,36 @@ def scrape_approval_times(
     for idx, nomor_pkk in enumerate(df_pkk["nomor_pkk"], start=1):
         if progress_callback:
             progress_callback(idx, total)
-        if status_callback and idx % 50 == 0:
+        if status_callback and (idx % 50 == 0 or idx == 1 or idx == total):
             status_callback(
                 f"[{idx}/{total}] Mengambil approval time: PKK {nomor_pkk}"
             )
 
         url = f"{BASE_URL}/monitoring/detail?nomor_pkk={nomor_pkk}"
         try:
-            html = requests.get(url, timeout=30).text
-            dfs = pd.read_html(StringIO(html))
+            r = requests.get(url, timeout=30)
+            if r.status_code != 200:
+                if error_callback:
+                    error_callback(f"HTTP {r.status_code}: Detail PKK {nomor_pkk} gagal diakses.")
+                continue
+            dfs = pd.read_html(StringIO(r.text))
+            if len(dfs) < 3:
+                if error_callback:
+                    error_callback(f"Format tabel tidak sesuai untuk PKK {nomor_pkk}")
+                continue
             approval = dfs[2].copy()
             approval.columns = approval.columns.get_level_values(1)
             approval = approval[approval["Layanan"] == "PKK"]
             approval = approval[["Layanan", "Permohonan", "Persetujuan", "Nomor Produk"]].copy()
             approval["nomor_pkk"] = nomor_pkk
             approval_list.append(approval)
-        except Exception:
+        except requests.exceptions.Timeout:
+            if error_callback:
+                error_callback(f"Timeout saat mengambil detail PKK {nomor_pkk}")
+            continue
+        except Exception as e:
+            if error_callback:
+                error_callback(f"Gagal membaca PKK {nomor_pkk}: {str(e)}")
             continue
 
     if not approval_list:
@@ -164,6 +191,7 @@ def run_full_scraping(
     status_stage1: Optional[Callable] = None,
     progress_stage2: Optional[Callable] = None,
     status_stage2: Optional[Callable] = None,
+    error_callback: Optional[Callable[[str], None]] = None,
 ) -> pd.DataFrame:
     """
     Menjalankan scraping lengkap (2 tahap) dan menggabungkan hasilnya
@@ -183,6 +211,7 @@ def run_full_scraping(
         months=months,
         progress_callback=progress_stage1,
         status_callback=status_stage1,
+        error_callback=error_callback,
     )
 
     if df_pkk.empty:
@@ -193,6 +222,7 @@ def run_full_scraping(
         df_pkk=df_pkk,
         progress_callback=progress_stage2,
         status_callback=status_stage2,
+        error_callback=error_callback,
     )
 
     if approval_df.empty:
@@ -228,3 +258,4 @@ def run_full_scraping(
     ]
     available = [c for c in final_cols if c in df_merged.columns]
     return df_merged[available].drop_duplicates(subset=["PKK_number"]).reset_index(drop=True)
+
