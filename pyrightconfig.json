@@ -1,0 +1,11 @@
+{
+  "venvPath": "inaportnetDashboard",
+  "venv": "venv",
+  "extraPaths": [
+    "inaportnetDashboard"
+  ],
+  "exclude": [
+    "**/venv",
+    "**/.venv"
+  ]
+}

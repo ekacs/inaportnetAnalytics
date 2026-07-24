@@ -7,11 +7,9 @@ dan opsi pengunduhan data dalam berbagai format (CSV, Excel, JSON, SQL).
 import streamlit as st
 import pandas as pd
 import io
-import json
 from modules.database import (
     is_connected, get_database_stats, fetch_pkk_records_paginated,
-    fetch_pkk_records, generate_sql_dump, check_and_clean_db_duplicates,
-    deduplicate_dataframe
+    fetch_pkk_records, generate_sql_dump, check_and_clean_db_duplicates
 )
 from modules.scraper import load_port_reference
 from modules.theme import render_theme_selector

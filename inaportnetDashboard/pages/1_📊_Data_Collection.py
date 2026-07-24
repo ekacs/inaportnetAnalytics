@@ -10,8 +10,7 @@ import io
 from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
-    get_supabase_client, insert_pkk_records,
-    fetch_pkk_records, is_connected, get_available_ports_from_db,
+    insert_pkk_records, fetch_pkk_records, is_connected,
     deduplicate_dataframe
 )
 from modules.theme import render_theme_selector

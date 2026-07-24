@@ -6,7 +6,6 @@ Koneksi dan operasi CRUD ke Supabase untuk data PKK Inaportnet.
 import pandas as pd
 import streamlit as st
 from typing import Optional, List
-import math
 
 # ──────────────────────────────────────────────────────────────
 # Client Supabase (singleton via cache_resource)

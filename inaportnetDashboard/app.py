@@ -3,7 +3,6 @@ app.py — Halaman Utama Inaportnet Analytics Dashboard
 """
 
 import streamlit as st
-import pandas as pd
 from modules.database import is_connected
 from modules.theme import render_theme_selector
 

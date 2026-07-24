@@ -10,7 +10,6 @@ from modules.analysis import (
     compute_port_summary, compute_performance_indices, classify_quadrant,
 )
 from modules.visualization import plot_quadrant_scatter, plot_performance_ranking
-from modules.database import is_connected
 from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Port Classification · Inaportnet", page_icon="🗺️", layout="wide")
