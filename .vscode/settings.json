@@ -1,0 +1,13 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/inaportnetDashboard/venv/Scripts/python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/inaportnetDashboard"
+  ],
+  "python.analysis.exclude": [
+    "**/venv/**",
+    "**/.venv/**"
+  ],
+  "files.watcherExclude": {
+    "**/venv/**": true
+  }
+}

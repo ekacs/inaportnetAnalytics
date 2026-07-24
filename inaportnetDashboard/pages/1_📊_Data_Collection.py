@@ -11,7 +11,8 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     get_supabase_client, insert_pkk_records,
-    fetch_pkk_records, is_connected, get_available_ports_from_db
+    fetch_pkk_records, is_connected, get_available_ports_from_db,
+    deduplicate_dataframe
 )
 from modules.theme import render_theme_selector
 
@@ -207,12 +208,15 @@ with tab_scrape:
             if df_raw.empty:
                 st.warning("⚠️ Tidak ada data yang berhasil diambil. Periksa koneksi atau parameter.")
             else:
-                # Preprocessing
-                with st.spinner("Memproses data..."):
+                # Preprocessing & Deduplikasi
+                with st.spinner("Memproses & mendeteksi duplikasi data..."):
                     df_processed = preprocess(df_raw)
+                    df_processed, n_dups = deduplicate_dataframe(df_processed)
 
                 st.session_state["df"] = df_processed
-                st.success(f"✅ **{len(df_processed):,} record** berhasil diambil dan diproses.")
+                if n_dups > 0:
+                    st.info(f"🧹 **{n_dups:,} record duplikat** terdeteksi dan dibersihkan dari hasil scraping.")
+                st.success(f"✅ **{len(df_processed):,} record bersih** berhasil diambil dan diproses.")
                 result_area.dataframe(df_processed.head(10), use_container_width=True)
 
                 # Simpan ke Supabase
@@ -270,14 +274,17 @@ with tab_upload:
                     st.markdown("")
 
                 if st.button("✅ Gunakan Data Ini", type="primary", key="btn_use_upload"):
-                    with st.spinner("Memproses data..."):
+                    with st.spinner("Memproses & mendeteksi duplikasi..."):
                         if validation["is_raw"]:
                             df_final = preprocess(df_upload)
                         else:
                             df_final = df_upload.copy()
+                        df_final, n_dups = deduplicate_dataframe(df_final)
 
                     st.session_state["df"] = df_final
-                    st.success(f"✅ **{len(df_final):,} record** siap dianalisis.")
+                    if n_dups > 0:
+                        st.info(f"🧹 **{n_dups:,} record duplikat** dibersihkan dari file.")
+                    st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
                     if save_upload_db and db_ok:
                         with st.spinner("Menyimpan ke Supabase..."):

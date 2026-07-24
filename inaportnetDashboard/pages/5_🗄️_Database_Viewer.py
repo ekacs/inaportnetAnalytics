@@ -10,7 +10,8 @@ import io
 import json
 from modules.database import (
     is_connected, get_database_stats, fetch_pkk_records_paginated,
-    fetch_pkk_records, generate_sql_dump
+    fetch_pkk_records, generate_sql_dump, check_and_clean_db_duplicates,
+    deduplicate_dataframe
 )
 from modules.scraper import load_port_reference
 from modules.theme import render_theme_selector
@@ -96,6 +97,54 @@ if not db_ok:
         "agar dapat melihat dan mengunduh database."
     )
     st.stop()
+
+# ── Deduplication Dialog Modal ────────────────────────────────
+if hasattr(st, "dialog"):
+    @st.dialog("🧹 Deteksi & Pembersihan Duplikasi Data Supabase")
+    def render_dedup_dialog():
+        st.markdown(
+            "Sistem akan mendeteksi data yang telah di-scrap dan tersimpan di Supabase, "
+            "menghitung duplikasi record (`PKK_number`), dan menghapusnya sebelum Live View dijalankan."
+        )
+        status_box = st.empty()
+        pbar = st.progress(0)
+
+        def cb_update(step_code, msg, pct):
+            status_box.info(f"**Proses Pembersihan Data:**\n\n{msg}")
+            pbar.progress(pct)
+
+        res = check_and_clean_db_duplicates(progress_callback=cb_update)
+
+        if res["success"]:
+            st.success(
+                f"🎉 **Proses Pembersihan Selesai!**\n\n"
+                f"- Total record diperiksa: **{res['total_checked']:,}**\n"
+                f"- Duplikasi ditemukan: **{res['duplicates_found']:,}**\n"
+                f"- Duplikasi dihapus: **{res['duplicates_removed']:,}**\n"
+                f"- Total record bersih: **{res['clean_count']:,}**"
+            )
+            st.session_state["db_dedup_checked"] = True
+            if st.button("🚀 Tampilkan Live View", type="primary", use_container_width=True):
+                st.rerun()
+        else:
+            st.error(f"❌ Gagal memproses duplikasi: {res['error']}")
+            if st.button("Tutup", use_container_width=True):
+                st.rerun()
+else:
+    def render_dedup_dialog():
+        with st.spinner("Mendeteksi & menghapus duplikasi data di Supabase..."):
+            res = check_and_clean_db_duplicates()
+        if res["success"]:
+            st.success(f"✅ Pembersihan selesai! {res['duplicates_removed']:,} record duplikat dihapus.")
+            st.session_state["db_dedup_checked"] = True
+        else:
+            st.error(f"❌ Gagal memproses duplikasi: {res['error']}")
+
+# Opsi manual trigger dialog duplikasi via session state
+if st.session_state.get("trigger_dedup_modal", False):
+    st.session_state["trigger_dedup_modal"] = False
+    render_dedup_dialog()
+
 
 # ── Load Port Reference ───────────────────────────────────────
 @st.cache_data(show_spinner=False)
@@ -216,12 +265,16 @@ total_pages = max(1, (total_filtered_count + page_size - 1) // page_size)
 # ── Data Table View Header ────────────────────────────────────
 st.markdown('<div class="section-header">📊 Tampilan Tabel Database (Live View)</div>', unsafe_allow_html=True)
 
-col_stat_info, col_btn_load = st.columns([3, 1])
+col_stat_info, col_btn_dedup, col_btn_load = st.columns([2, 1, 1])
 with col_stat_info:
     st.markdown(
         f"**Menampilkan `{len(df_db_view):,}` dari `{total_filtered_count:,}` record terfilter** "
         f"(Halaman **{current_page}** dari **{total_pages}**)"
     )
+
+with col_btn_dedup:
+    if st.button("🧹 Bersihkan Duplikat", type="secondary", use_container_width=True, help="Deteksi dan hapus duplikasi data di Supabase"):
+        render_dedup_dialog()
 
 with col_btn_load:
     if st.button("📥 Muat ke Sesi Analisis", type="primary", use_container_width=True):

@@ -229,6 +229,127 @@ def delete_pkk_records(port_codes: List[str], year: int) -> dict:
         return {"success": False, "error": str(e)}
 
 
+def deduplicate_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """
+    Menghapus duplikasi record dari DataFrame berdasarkan pkk_number (atau PKK_number).
+    
+    Returns
+    -------
+    (df_clean, duplicate_count)
+    """
+    if df.empty:
+        return df, 0
+    
+    col_pkk = "PKK_number" if "PKK_number" in df.columns else ("pkk_number" if "pkk_number" in df.columns else None)
+    if not col_pkk:
+        return df, 0
+    
+    initial_len = len(df)
+    df_clean = df.drop_duplicates(subset=[col_pkk], keep="last").reset_index(drop=True)
+    dup_count = initial_len - len(df_clean)
+    return df_clean, dup_count
+
+
+def check_and_clean_db_duplicates(progress_callback=None) -> dict:
+    """
+    Mendeteksi dan menghapus record duplikat di Supabase (pkk_records) berdasarkan pkk_number.
+    
+    Parameters
+    ----------
+    progress_callback : callable, optional
+        Fungsi callback (step_code, message, pct) untuk update UI modal.
+        
+    Returns
+    -------
+    dict : {'total_checked': int, 'duplicates_found': int, 'duplicates_removed': int, 'clean_count': int, 'success': bool, 'error': str}
+    """
+    client = get_supabase_client()
+    if client is None:
+        return {
+            "total_checked": 0, "duplicates_found": 0, "duplicates_removed": 0,
+            "clean_count": 0, "success": False, "error": "Supabase tidak terkonfigurasi."
+        }
+
+    try:
+        if progress_callback:
+            progress_callback("detect", "🔍 Mendeteksi data yang tersimpan di Supabase...", 20)
+
+        # Ambil id dan pkk_number seluruh data dari Supabase
+        all_rows = []
+        offset = 0
+        page_size = 5000
+        while True:
+            resp = client.table("pkk_records").select("id, pkk_number, scraped_at").range(offset, offset + page_size - 1).execute()
+            if not resp.data:
+                break
+            all_rows.extend(resp.data)
+            if len(resp.data) < page_size:
+                break
+            offset += page_size
+
+        total_checked = len(all_rows)
+        if total_checked == 0:
+            return {
+                "total_checked": 0, "duplicates_found": 0, "duplicates_removed": 0,
+                "clean_count": 0, "success": True, "error": None
+            }
+
+        if progress_callback:
+            progress_callback("count", f"🔢 Menghitung duplikasi data dari {total_checked:,} record...", 50)
+
+        # Cari pkk_number ganda
+        seen = {}
+        duplicate_ids = []
+        for r in all_rows:
+            pkk = r.get("pkk_number")
+            rec_id = r.get("id")
+            if not pkk or not rec_id:
+                continue
+            if pkk in seen:
+                # Duplikat ditemukan! Simpan ID lama untuk dihapus
+                duplicate_ids.append(seen[pkk])
+                seen[pkk] = rec_id  # simpan yang terbaru
+            else:
+                seen[pkk] = rec_id
+
+        duplicates_found = len(duplicate_ids)
+
+        if duplicates_found > 0:
+            if progress_callback:
+                progress_callback("clean", f"🧹 Menghapus {duplicates_found:,} record duplikat dari Supabase...", 75)
+
+            # Hapus ID duplikat secara batch
+            batch_size = 200
+            duplicates_removed = 0
+            for i in range(0, len(duplicate_ids), batch_size):
+                chunk = duplicate_ids[i:i + batch_size]
+                client.table("pkk_records").delete().in_("id", chunk).execute()
+                duplicates_removed += len(chunk)
+        else:
+            duplicates_removed = 0
+
+        clean_count = total_checked - duplicates_removed
+
+        if progress_callback:
+            progress_callback("complete", f"✅ Data bersih dari duplikasi! Total: {clean_count:,} record.", 100)
+
+        return {
+            "total_checked": total_checked,
+            "duplicates_found": duplicates_found,
+            "duplicates_removed": duplicates_removed,
+            "clean_count": clean_count,
+            "success": True,
+            "error": None
+        }
+
+    except Exception as e:
+        return {
+            "total_checked": 0, "duplicates_found": 0, "duplicates_removed": 0,
+            "clean_count": 0, "success": False, "error": str(e)
+        }
+
+
+
 # ──────────────────────────────────────────────────────────────
 # DATABASE EXPLORER & STATS
 # ──────────────────────────────────────────────────────────────
