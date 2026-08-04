@@ -27,6 +27,18 @@ Platform analitik dan pemantauan performa layanan **Inaportnet (Kementerian Perh
 
 Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilitas komprehensif terhadap performa operasional pelayanan publik di sektor maritim Indonesia. Dengan mengintegrasikan otomatisasi pengumpulan data (*web scraping*), pembersihan data terstruktur (*preprocessing & deduplication*), penyimpan berbasis awan (*Supabase Cloud*), serta metode pengambilan keputusan kriteria majemuk (**AHP Saaty 1-9**), platform ini menyajikan analisis 4 kuadran pelabuhan secara objektif untuk mendukung perumusan kebijakan logistik nasional.
 
+**Demo aplikasi 👇**
+
+[inaportnetanalytics-ahp.streamlit.app](https://inaportnetanalytics-ahp.streamlit.app/)
+
+**Karya tulis ilmiah**
+
+......
+
+**Video Demo Aplikasi**
+
+.........
+
 ---
 
 ## 🎯 Kegunaan & Fitur Utama
