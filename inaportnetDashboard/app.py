@@ -120,10 +120,10 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                                      label="Beranda", icon="🏠")
     st.page_link("pages/1_📊_Data_Collection.py",               label="Data Collection")
-    st.page_link("pages/2_🚦_Traffic_Overview.py",              label="Traffic Overview")
-    st.page_link("pages/3_📋_Service_Performance.py",           label="Service Performance")
-    st.page_link("pages/4_🗺️_Port_Classification.py",           label="Port Classification")
-    st.page_link("pages/5_🗄️_Database_Viewer.py",               label="Database Viewer")
+    st.page_link("pages/2_🗄️_Database_Viewer.py",               label="Database Viewer")
+    st.page_link("pages/3_🚦_Traffic_Overview.py",              label="Traffic Overview")
+    st.page_link("pages/4_📋_Service_Performance.py",           label="Service Performance")
+    st.page_link("pages/5_🗺️_Port_Classification.py",           label="Port Classification")
     st.markdown("---")
 
     # Status koneksi & kuota database
