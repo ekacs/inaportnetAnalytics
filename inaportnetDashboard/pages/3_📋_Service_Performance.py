@@ -15,6 +15,7 @@ from modules.visualization import (
     plot_top_longest_approval, plot_sla_compliance_bar,
     plot_sla_trend,
 )
+from modules.database import is_connected
 from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Service Performance · Inaportnet", page_icon="📋", layout="wide")
@@ -39,12 +40,12 @@ footer{visibility:hidden;} #MainMenu{visibility:hidden;}
 with st.sidebar:
     st.markdown("### 🚢 Inaportnet Analytics")
     st.markdown("---")
-    st.page_link("app.py",                               label="🏠 Beranda")
-    st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-    st.page_link("pages/2_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
-    st.page_link("pages/3_📋_Service_Performance.py",    label="📋 Service Performance")
-    st.page_link("pages/4_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/5_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+    st.page_link("app.py",                               label="Beranda", icon="🏠")
+    st.page_link("pages/1_📊_Data_Collection.py",        label="Data Collection")
+    st.page_link("pages/2_🚦_Traffic_Overview.py",       label="Traffic Overview")
+    st.page_link("pages/3_📋_Service_Performance.py",    label="Service Performance")
+    st.page_link("pages/4_🗺️_Port_Classification.py",    label="Port Classification")
+    st.page_link("pages/5_🗄️_Database_Viewer.py",        label="Database Viewer")
     st.markdown("---")
 
     df_sess = st.session_state.get("df", pd.DataFrame())
@@ -85,15 +86,30 @@ st.markdown("# 📋 Service Performance")
 
 df_raw = st.session_state.get("df", pd.DataFrame())
 if df_raw.empty:
-    st.warning("⚠️ Belum ada data. Silakan ambil atau muat data di halaman **📊 Data Collection**.")
+    st.warning("⚠️ Belum ada data di sesi ini.")
+    if is_connected():
+        if st.button("📥 Auto-Load Data dari Supabase", type="primary"):
+            with st.spinner("Mengambil data dari Supabase..."):
+                from modules.database import fetch_pkk_records
+                df_loaded = fetch_pkk_records(page_size=1000)
+                if not df_loaded.empty:
+                    st.session_state["df"] = df_loaded
+                    st.rerun()
+                else:
+                    st.error("❌ Supabase masih kosong.")
+    else:
+        st.info("Silakan muat file data di halaman **📊 Data Collection**.")
     st.stop()
 
-# Terapkan filter
-df = df_raw.copy()
-if selected_ports:
-    df = df[df["port"].isin(selected_ports)]
-if selected_angkutan:
-    df = df[df["angkutan"].isin(selected_angkutan)]
+# Terapkan filter hanya jika ada filter yang dipilih (hemat RAM)
+if selected_ports or selected_angkutan:
+    df = df_raw
+    if selected_ports:
+        df = df[df["port"].isin(selected_ports)]
+    if selected_angkutan:
+        df = df[df["angkutan"].isin(selected_angkutan)]
+else:
+    df = df_raw
 
 if df.empty:
     st.warning("⚠️ Tidak ada data setelah filter.")

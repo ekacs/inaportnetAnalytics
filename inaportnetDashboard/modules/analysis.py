@@ -6,6 +6,7 @@ Refactoring dari scripts 02, 03, 04, service_level.py, service_performance.py, t
 
 import pandas as pd
 import numpy as np
+import streamlit as st
 from typing import Optional
 
 SLA_THRESHOLD_MINUTES = 30   # PKK harus disetujui dalam 30 menit
@@ -16,6 +17,7 @@ EXTREME_DELAY_MINUTES = 102  # Ambang keterlambatan ekstrem
 # TRAFFIC ANALYSIS
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data(show_spinner=False)
 def get_national_stats(df: pd.DataFrame) -> dict:
     """Statistik ringkasan nasional."""
     if df.empty:
@@ -31,6 +33,7 @@ def get_national_stats(df: pd.DataFrame) -> dict:
     }
 
 
+@st.cache_data(show_spinner=False)
 def get_port_volume(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     """Volume PKK per pelabuhan, diurutkan descending."""
     if df.empty:
@@ -48,6 +51,7 @@ def get_port_volume(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     return grp.reset_index(drop=True)
 
 
+@st.cache_data(show_spinner=False)
 def get_trend_quarterly(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per kuartal."""
     if df.empty or "quarter" not in df.columns:
@@ -60,6 +64,7 @@ def get_trend_quarterly(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+@st.cache_data(show_spinner=False)
 def get_trend_monthly(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per bulan."""
     if df.empty or "month" not in df.columns:
@@ -79,6 +84,7 @@ def get_trend_monthly(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+@st.cache_data(show_spinner=False)
 def get_trend_daily(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per hari dalam seminggu."""
     if df.empty or "day" not in df.columns:
@@ -89,6 +95,7 @@ def get_trend_daily(df: pd.DataFrame) -> pd.DataFrame:
     return result.sort_values("day")
 
 
+@st.cache_data(show_spinner=False)
 def get_trend_hourly(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per jam (0–23)."""
     if df.empty or "hour" not in df.columns:
@@ -102,18 +109,19 @@ def get_trend_hourly(df: pd.DataFrame) -> pd.DataFrame:
 # SERVICE PERFORMANCE & SLA
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data(show_spinner=False)
 def get_service_distribution(df: pd.DataFrame) -> pd.DataFrame:
     """Distribusi waktu persetujuan ke dalam kategori waktu."""
     if df.empty or "approval_hours" not in df.columns:
         return pd.DataFrame()
     bins   = [0, 0.5, 1, 2, 6, 12, 24, float("inf")]
     labels = ["< 30 mnt", "30-60 mnt", "1-2 jam", "2-6 jam", "6-12 jam", "12-24 jam", "> 24 jam"]
-    df = df.copy()
-    df["time_category"] = pd.cut(
-        df["approval_hours"], bins=bins, labels=labels, right=True
+    df_cat = df.copy()
+    df_cat["time_category"] = pd.cut(
+        df_cat["approval_hours"], bins=bins, labels=labels, right=True
     )
     result = (
-        df["time_category"]
+        df_cat["time_category"]
         .value_counts()
         .reindex(labels, fill_value=0)
         .reset_index()
@@ -126,6 +134,7 @@ def get_service_distribution(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+@st.cache_data(show_spinner=False)
 def get_top_longest_approval(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     """Top N pelabuhan dengan rata-rata waktu persetujuan terlama."""
     if df.empty or "approval_minutes" not in df.columns:
@@ -147,6 +156,7 @@ def get_top_longest_approval(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     )
 
 
+@st.cache_data(show_spinner=False)
 def get_sla_compliance_by_port(df: pd.DataFrame, sla_minutes: float = SLA_THRESHOLD_MINUTES) -> pd.DataFrame:
     """SLA compliance rate per pelabuhan."""
     if df.empty or "approval_minutes" not in df.columns:
@@ -167,6 +177,7 @@ def get_sla_compliance_by_port(df: pd.DataFrame, sla_minutes: float = SLA_THRESH
     return result.sort_values("compliance_rate", ascending=True)
 
 
+@st.cache_data(show_spinner=False)
 def get_sla_trend_monthly(df: pd.DataFrame, sla_minutes: float = SLA_THRESHOLD_MINUTES) -> pd.DataFrame:
     """Tren SLA compliance per bulan."""
     if df.empty or "month" not in df.columns:
