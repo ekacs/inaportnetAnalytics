@@ -63,3 +63,15 @@ SELECT
     MAX(year)                                          AS year_max
 FROM pkk_records
 GROUP BY port_code, port;
+
+-- ============================================================
+-- Row Level Security (RLS) Policy Setup
+-- Jalankan ini jika muncul error: 'new row violates row-level security policy'
+-- ============================================================
+-- Option 1: Buat policy akses publik untuk anon key
+CREATE POLICY "Allow public access to pkk_records" 
+ON pkk_records FOR ALL TO public USING (true) WITH CHECK (true);
+
+-- Option 2: Atau nonaktifkan RLS pada tabel pkk_records
+-- ALTER TABLE pkk_records DISABLE ROW LEVEL SECURITY;
+
