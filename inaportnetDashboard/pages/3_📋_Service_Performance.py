@@ -160,9 +160,18 @@ if not df_sla.empty:
     st.plotly_chart(plot_sla_compliance_bar(df_sla, top_n=n_show), width="stretch")
 
     with st.expander("📋 Tabel Lengkap SLA per Pelabuhan"):
-        display_sla = df_sla[["port_code","port","total","compliant","compliance_rate"]].copy()
-        display_sla.columns = ["Kode","Pelabuhan","Total PKK","Dalam SLA","Compliance (%)"]
-        st.dataframe(display_sla.sort_values("Compliance (%)", ascending=True), width="stretch")
+        cols = [c for c in ["port_code", "port", "total", "compliant", "compliance_rate"] if c in df_sla.columns]
+        display_sla = df_sla[cols].copy()
+        rename_map = {
+            "port_code": "Kode",
+            "port": "Pelabuhan",
+            "total": "Total PKK",
+            "compliant": "Dalam SLA",
+            "compliance_rate": "Compliance (%)",
+        }
+        display_sla = display_sla.rename(columns=rename_map)
+        sort_col = "Compliance (%)" if "Compliance (%)" in display_sla.columns else display_sla.columns[0]
+        st.dataframe(display_sla.sort_values(sort_col, ascending=True), width="stretch")
 
 # ── Tren SLA per Bulan ────────────────────────────────────────
 st.markdown(f'<div class="section-title">📈 Tren SLA Compliance per Bulan</div>', unsafe_allow_html=True)
