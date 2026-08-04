@@ -33,10 +33,13 @@ def get_national_stats(df: pd.DataFrame) -> dict:
 
 def get_port_volume(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     """Volume PKK per pelabuhan, diurutkan descending."""
-    if df.empty or "port_code" not in df.columns:
+    if df.empty:
+        return pd.DataFrame()
+    group_cols = [c for c in ["port_code", "port"] if c in df.columns]
+    if not group_cols:
         return pd.DataFrame()
     grp = (
-        df.groupby(["port_code", "port"])
+        df.groupby(group_cols)
         .size()
         .reset_index(name="volume")
         .sort_values("volume", ascending=False)
@@ -125,10 +128,13 @@ def get_service_distribution(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_top_longest_approval(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     """Top N pelabuhan dengan rata-rata waktu persetujuan terlama."""
-    if df.empty or "port" not in df.columns:
+    if df.empty or "approval_minutes" not in df.columns:
+        return pd.DataFrame()
+    group_cols = [c for c in ["port_code", "port"] if c in df.columns]
+    if not group_cols:
         return pd.DataFrame()
     return (
-        df.groupby(["port_code", "port"])
+        df.groupby(group_cols)
         .agg(
             mean_minutes=("approval_minutes", "mean"),
             median_minutes=("approval_minutes", "median"),
@@ -143,10 +149,13 @@ def get_top_longest_approval(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
 
 def get_sla_compliance_by_port(df: pd.DataFrame, sla_minutes: float = SLA_THRESHOLD_MINUTES) -> pd.DataFrame:
     """SLA compliance rate per pelabuhan."""
-    if df.empty:
+    if df.empty or "approval_minutes" not in df.columns:
+        return pd.DataFrame()
+    group_cols = [c for c in ["port_code", "port"] if c in df.columns]
+    if not group_cols:
         return pd.DataFrame()
     result = (
-        df.groupby(["port_code", "port"])
+        df.groupby(group_cols)
         .agg(
             total=("approval_minutes", "count"),
             compliant=("approval_minutes", lambda x: (x < sla_minutes).sum()),
@@ -207,11 +216,15 @@ def compute_port_summary(df: pd.DataFrame) -> pd.DataFrame:
         std_response_time, extreme_delay, sla_compliance,
         coefficient_of_variation, extreme_delay_index
     """
-    if df.empty:
+    if df.empty or "approval_minutes" not in df.columns:
+        return pd.DataFrame()
+
+    group_cols = [c for c in ["port_code", "port"] if c in df.columns]
+    if not group_cols:
         return pd.DataFrame()
 
     summary = (
-        df.groupby(["port_code", "port"])
+        df.groupby(group_cols)
         .agg(
             volume=("approval_minutes", "count"),
             sla_compliant=("approval_minutes", lambda x: (x < SLA_THRESHOLD_MINUTES).sum()),

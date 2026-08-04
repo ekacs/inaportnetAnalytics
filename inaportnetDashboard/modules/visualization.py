@@ -261,10 +261,11 @@ def plot_top_longest_approval(df_top: pd.DataFrame) -> go.Figure:
         return go.Figure()
 
     df_sorted = df_top.sort_values("mean_minutes", ascending=True)
+    port_col = "port" if "port" in df_sorted.columns else ("port_code" if "port_code" in df_sorted.columns else df_sorted.columns[0])
 
     fig = go.Figure(go.Bar(
         x=df_sorted["mean_minutes"],
-        y=df_sorted["port"],
+        y=df_sorted[port_col],
         orientation="h",
         marker_color=COLORS["danger"],
         text=df_sorted["mean_minutes"].apply(lambda x: f"{x:.1f} mnt"),
@@ -282,6 +283,7 @@ def plot_sla_compliance_bar(df_sla: pd.DataFrame, top_n: int = 20) -> go.Figure:
     if df_sla.empty:
         return go.Figure()
 
+    port_col = "port" if "port" in df_sla.columns else ("port_code" if "port_code" in df_sla.columns else df_sla.columns[0])
     # Tampilkan worst performers dulu
     df_sorted = df_sla.sort_values("compliance_rate", ascending=True).head(top_n)
     colors_list = [
@@ -291,7 +293,7 @@ def plot_sla_compliance_bar(df_sla: pd.DataFrame, top_n: int = 20) -> go.Figure:
 
     fig = go.Figure(go.Bar(
         x=df_sorted["compliance_rate"],
-        y=df_sorted["port"],
+        y=df_sorted[port_col],
         orientation="h",
         marker_color=colors_list,
         text=df_sorted["compliance_rate"].apply(lambda x: f"{x:.1f}%"),
