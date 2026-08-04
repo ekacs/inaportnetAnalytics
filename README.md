@@ -44,26 +44,27 @@ Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilita
 ## 🎯 Kegunaan & Fitur Utama
 
 1. **🌐 Data Collection & Automated Ingestion (`1_📊_Data_Collection.py`)**:
+
    - **Web Scraping**: Pengambilan data PKK otomatis dari portal resmi Inaportnet Dephub per pelabuhan, tahun, dan jenis angkutan (domestik `dn` & luar negeri `ln`).
    - **Upload Multi-Format**: Unggah file eksternal skala besar (`.csv`, `.xlsx`, `.zip`, `.parquet`) hingga **500 MB** dengan parsing multi-threading PyArrow.
    - **Tab 3: ☁️ Load dari Supabase**: Fitur sinkronisasi langsung data Supabase dengan *real-time metrics*, *interactive progress bar*, dan perkiraan waktu selesai (*ETA timer*).
    - **Global Sidebar Sync Widget**: Widget sinkronisasi cepat yang tersedia di sidebar seluruh halaman dasbor.
-
 2. **🗄️ Live Database Viewer (`2_🗄️_Database_Viewer.py`)**:
+
    - Ditempatkan tepat setelah Data Collection untuk navigasi cepat penjelajahan database.
    - Penjelajah tabel Supabase secara *live* dengan pencarian kata kunci interaktif & pagination.
    - Ekspor data hasil olahan ke format **CSV**, **Excel** (dengan pembersihan otomatis zona waktu), **JSON**, dan **SQL Dump**.
-
 3. **🚦 Traffic Overview (`3_🚦_Traffic_Overview.py`)**:
+
    - Analisis volume pergerakan kedatangan kapal (PKK) tahunan, bulanan, harian, dan jam sibuk.
    - Filter interaktif per pelabuhan dan jenis angkutan domestik vs luar negeri.
-
 4. **📋 Service Performance & SLA Monitoring (`4_📋_Service_Performance.py`)**:
+
    - Evaluasi durasi waktu persetujuan (*approval time*) dari submit pengajuan hingga terbit izin.
    - Indikator Kepatuhan SLA (Standar < 31 menit): Tingkat persentase kelulusan SLA, rata-rata durasi, dan nilai median durasi.
    - Distribusi statistik dan visualisasi boxplot per pelabuhan.
-
 5. **🗺️ Port Classification & AHP Index (`5_🗺️_Port_Classification.py`)**:
+
    - **Skema AHP Scientifically Weighted**: Pembobotan 4 kriteria utama (*Compliance Index*, *Robustness Index*, *Efficiency Index*, dan *Consistency Index*) dengan skala perbandingan berpasangan Saaty (1-9) dan rasio konsistensi **Consistency Ratio (CR = 0.0402 < 0.10)**.
    - **Analisis 4 Kuadran Pelabuhan**:
      - 🏆 **Benchmark Port**: Volume tinggi & performa efisien.
@@ -71,8 +72,8 @@ Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilita
      - 🚦 **Congested Port**: Workload sangat tinggi yang mengalami potensi *bottleneck*.
      - 🛠️ **Developing Port**: Pelabuhan yang memerlukan peningkatan efisiensi operasional.
    - Skema perbandingan bobot (*AHP Saaty* vs *Equal Weight 25%* vs *Custom Weight*).
-
 6. **🤖 Analytics Advisor (Policy & Risk) (`6_🤖_Analytics_Advisor.py`)**:
+
    - **Halaman Dedicated Baru**: Terletak setelah Port Classification dengan tampilan antarmuka *glassmorphism executive layout*.
    - **Evaluasi Pelabuhan Spesifik**: Pilih pelabuhan dari dropdown interaktif untuk memperoleh 5 poin pendapat analisis AI:
      1. **Bobot Prioritas AHP & Evaluasi Kriteria**: Breakdown skor kriteria pelabuhan terpilih ($S_{CI}, S_{RI}, S_{EI}, S_{CsI}$) beserta bobot global ($W_{CI}=47.1\%, W_{RI}=28.4\%, W_{EI}=17.2\%, W_{CsI}=7.4\%$).
@@ -86,22 +87,87 @@ Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilita
 ## 🏗️ Arsitektur Aplikasi
 
 ```mermaid
-[ Portal Inaportnet Dephub ]  OR  [ External Files (CSV/ZIP) ]
-             │                                 │
-             ▼                                 ▼
-   ┌────────────────────────────────────────────────────────┐
-   │        Streamlit Frontend (Inaportnet Dashboard)       │
-   ├────────────────────────────────────────────────────────┤
-   │  • Data Scraper Engine      • Preprocessing Pipeline   │
-   │  • AHP Calculation Engine   • Analytics Advisor AI     │
-   │  • Multithreaded Ingestor   • Plotly Visualizations    │
-   └──────────────────────────┬─────────────────────────────┘
-                              │ Streaming Batch / Parallel Threading
-                              ▼
-                ┌───────────────────────────┐
-                │   Supabase Cloud DB       │
-                │   (PostgreSQL + RLS)      │
-                └───────────────────────────┘
+flowchart TD
+    %% Custom Styling Definitions
+    classDef sourceStyle fill:#1a4a7a,color:#ffffff,stroke:#0f2d52,stroke-width:2px;
+    classDef frontendStyle fill:#0f2d52,color:#ffffff,stroke:#64ffda,stroke-width:2px;
+    classDef engineStyle fill:#2471a3,color:#ffffff,stroke:#1a4a7a,stroke-width:1px;
+    classDef storageStyle fill:#1e8449,color:#ffffff,stroke:#117864,stroke-width:2px;
+    classDef outputStyle fill:#7d3c98,color:#ffffff,stroke:#5b2c6f,stroke-width:1px;
+
+    %% Data Sources Layer
+    subgraph DataSources ["🌐 Sumber Data Inaportnet"]
+        DS1[" Portal Resmi Monitoring Inaportnet Dephub "]:::sourceStyle
+        DS2[" File Eksternal CSV, XLSX, ZIP, Parquet "]:::sourceStyle
+    end
+
+    %% Application Core Layer
+    subgraph DashboardApp ["🚢 Inaportnet Analytics Platform (Streamlit App)"]
+      
+        subgraph IngestionModules ["📥 Modul Ingesti Data"]
+            M1[" Web Scraping Engine "]:::engineStyle
+            M2[" Multi-Format Upload & PyArrow Parser "]:::engineStyle
+            M3[" Supabase Cloud Sync Engine "]:::engineStyle
+        end
+
+        subgraph CoreEngine ["⚙️ Core Analytics & Decision Engine"]
+            E1[" Preprocessing & Deduplication Pipeline "]:::engineStyle
+            E2[" AHP Saaty 1-9 Matrix Calculator "]:::engineStyle
+            E3[" PSPI Composite Index & 4-Quadrant Classifier "]:::engineStyle
+            E4[" Analytics Advisor AI Policy & Risk Engine "]:::engineStyle
+        end
+
+        subgraph PresentationLayer ["📊 Modul Visualisasi & Antarmuka Navigasi"]
+            P1[" 1. Data Collection "]:::frontendStyle
+            P2[" 2. Database Viewer "]:::frontendStyle
+            P3[" 3. Traffic Overview "]:::frontendStyle
+            P4[" 4. Service Performance "]:::frontendStyle
+            P5[" 5. Port Classification "]:::frontendStyle
+            P6[" 6. Analytics Advisor AI "]:::frontendStyle
+        end
+    end
+
+    %% Cloud Database Storage Layer
+    subgraph CloudDatabase ["☁️ Supabase Cloud Database (PostgreSQL)"]
+        DB1[(" Tabel pkk_records (1.5M Quota) ")]:::storageStyle
+        DB2[(" SQL View port_summary_view ")]:::storageStyle
+        DB3[(" Row Level Security & Indexing ")]:::storageStyle
+    end
+
+    %% Export & Deliverables Layer
+    subgraph Exports ["📤 Hasil Analisis & Ekspor"]
+        EX1[" Laporan Kebijakan Executive & Risk Profile "]:::outputStyle
+        EX2[" Ekspor Multi-Format CSV, Excel, JSON, SQL "]:::outputStyle
+        EX3[" Grafik Interaktif Plotly "]:::outputStyle
+    end
+
+    %% Relationships / Flow Connections
+    DS1 --> M1
+    DS2 --> M2
+  
+    M1 --> E1
+    M2 --> E1
+  
+    E1 -- Bulk Parallel Ingestion --> DB1
+    M3 -- Auto-Load & Sync --> DB1
+
+    DB1 --- DB2
+    DB1 --- DB3
+
+    DB1 -- Query Data Sesi --> E2
+    E2 --> E3
+    E3 --> E4
+
+    E3 --> P5
+    E4 --> P6
+    E1 --> P1
+    DB1 --> P2
+    E1 --> P3
+    E1 --> P4
+
+    P6 --> EX1
+    P2 --> EX2
+    P3 & P4 & P5 --> EX3
 ```
 
 ### Struktur Direktori Repository:
@@ -245,9 +311,9 @@ Seluruh berkas riset, laporan analisis, naskah ilmiah, serta kalkulator model AH
 
 ---
 
-## ☕ Traktir Kopi Biar Semangat
+## [☕ Traktir Kopi Biar Semangat (klik link ini)](https://saweria.co/auditorzamannow)
 
-Jika platform analitik ini membantu pekerjaan, analisis operasional, atau penelitian akademik Anda, dukung tim pengembang agar tetap semangat memperbarui dan menambah fitur-fitur keren baru! ☕🚀
+[Jika platform analitik ini membantu pekerjaan, analisis operasional, atau penelitian akademik Anda, dukung tim pengembang agar tetap semangat memperbarui dan menambah fitur-fitur keren baru! ☕🚀](https://saweria.co/auditorzamannow)
 
 ### 👥 Penulis & Kontributor Utama:
 
