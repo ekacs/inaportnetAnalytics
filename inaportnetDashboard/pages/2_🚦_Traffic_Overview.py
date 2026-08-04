@@ -85,6 +85,7 @@ with st.sidebar:
 # ── Cek data ──────────────────────────────────────────────────
 st.markdown("# 🚦 Traffic Overview")
 
+df_raw = st.session_state.get("df", pd.DataFrame())
 if df_raw.empty:
     st.warning("⚠️ Belum ada data di sesi ini.")
     if is_connected():
