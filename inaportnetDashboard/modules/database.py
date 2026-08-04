@@ -186,6 +186,10 @@ def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callbac
 # FETCH
 # ──────────────────────────────────────────────────────────────
 
+# ──────────────────────────────────────────────────────────────
+# FETCH
+# ──────────────────────────────────────────────────────────────
+
 def fetch_pkk_records(
     port_codes: Optional[List[str]] = None,
     year: Optional[int] = None,
@@ -194,25 +198,12 @@ def fetch_pkk_records(
 ) -> pd.DataFrame:
     """
     Mengambil data PKK dari Supabase dengan filter opsional.
-
-    Parameters
-    ----------
-    port_codes : list of str, optional
-        Filter berdasarkan kode pelabuhan.
-    year : int, optional
-        Filter berdasarkan tahun.
-    angkutan : list of str, optional
-        Filter ['dn'], ['ln'], atau ['dn','ln'].
-    page_size : int
-        Jumlah record per halaman (pagination).
-
-    Returns
-    -------
-    pd.DataFrame
     """
     client = get_supabase_client()
     if client is None:
         return pd.DataFrame()
+
+    page_size = 1000  # Batas maksimal per request PostgREST API
 
     all_records = []
     offset = 0
@@ -221,14 +212,12 @@ def fetch_pkk_records(
         while True:
             q = client.table("pkk_records").select("*")
 
-            # Terapkan filter
             if port_codes:
                 q = q.in_("port_code", port_codes)
             if year:
                 q = q.eq("year", year)
             if angkutan and len(angkutan) == 1:
                 q = q.eq("angkutan", angkutan[0])
-            # Jika angkutan keduanya, tidak perlu filter
 
             response = q.range(offset, offset + page_size - 1).execute()
             if not response.data:
@@ -258,7 +247,6 @@ def fetch_pkk_records(
 
         # Rename kolom Supabase ke naming convention app
         df = df.rename(columns={"pkk_number": "PKK_number", "gmt": "GMT"})
-
         return df
 
     except Exception as e:
@@ -270,18 +258,22 @@ def fetch_pkk_records_with_progress(
     port_codes: Optional[List[str]] = None,
     year: Optional[int] = None,
     angkutan: Optional[List[str]] = None,
-    page_size: int = 5000,
+    page_size: int = 1000,
     label: str = "📥 Mengambil data dari Supabase..."
 ) -> pd.DataFrame:
     """
-    Mengambil data dari Supabase dengan tampilan progress bar interaktif,
-    kecepatan unduh (record/dtk), dan estimasi waktu tersisa (ETA).
+    Mengambil seluruh data dari Supabase dengan multithreading (10 parallel workers),
+    progress bar interaktif, kecepatan unduh (record/dtk), dan estimasi waktu tersisa (ETA).
     """
     import time
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     client = get_supabase_client()
     if client is None:
         st.error("❌ Supabase tidak terkonfigurasi.")
         return pd.DataFrame()
+
+    page_size = 1000  # Batas maksimal per request PostgREST API
 
     # Hitung total record terfilter terlebih dahulu
     total_count = 0
@@ -303,59 +295,87 @@ def fetch_pkk_records_with_progress(
 
     start_time = time.time()
     all_records = []
-    offset = 0
+
+    def fetch_page(offset_val):
+        q = client.table("pkk_records").select("*")
+        if port_codes:
+            q = q.in_("port_code", port_codes)
+        if year:
+            q = q.eq("year", year)
+        if angkutan and len(angkutan) == 1:
+            q = q.eq("angkutan", angkutan[0])
+        res = q.range(offset_val, offset_val + page_size - 1).execute()
+        return offset_val, res.data if res.data else []
 
     try:
-        while True:
-            q = client.table("pkk_records").select("*")
-            if port_codes:
-                q = q.in_("port_code", port_codes)
-            if year:
-                q = q.eq("year", year)
-            if angkutan and len(angkutan) == 1:
-                q = q.eq("angkutan", angkutan[0])
+        if total_count > 0:
+            offsets = list(range(0, total_count, page_size))
+            total_pages = len(offsets)
+            page_results = {}
+            completed_pages = 0
 
-            response = q.range(offset, offset + page_size - 1).execute()
-            if not response.data:
-                break
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                future_to_offset = {executor.submit(fetch_page, off): off for off in offsets}
+                for future in as_completed(future_to_offset):
+                    off, data = future.result()
+                    page_results[off] = data
+                    completed_pages += 1
 
-            all_records.extend(response.data)
-            current_count = len(all_records)
-            offset += page_size
+                    current_count = sum(len(v) for v in page_results.values())
+                    elapsed = time.time() - start_time
+                    speed = current_count / elapsed if elapsed > 0 else 0
+                    pct = min(1.0, completed_pages / total_pages)
+                    remaining = max(0, total_count - current_count)
+                    eta = remaining / speed if speed > 0 else 0
 
-            elapsed = time.time() - start_time
-            speed = current_count / elapsed if elapsed > 0 else 0
+                    if eta >= 60:
+                        eta_str = f"{int(eta // 60)} mnt {int(eta % 60)} dtk"
+                    else:
+                        eta_str = f"{int(eta)} dtk"
 
-            if total_count > 0:
-                pct = min(1.0, current_count / total_count)
-                remaining = max(0, total_count - current_count)
-                eta = remaining / speed if speed > 0 else 0
+                    progress_bar.progress(pct)
+                    status_box.markdown(
+                        f"**{label}**\n\n"
+                        f"📊 **Progress**: `{current_count:,}` dari `{total_count:,}` record (**{pct*100:.1f}%**)\n\n"
+                        f"⚡ **Kecepatan**: `{int(speed):,}` record/detik | ⏳ **Perkiraan Waktu Tersisa (ETA)**: `{eta_str}`"
+                    )
 
-                if eta >= 60:
-                    eta_str = f"{int(eta // 60)} mnt {int(eta % 60)} dtk"
-                else:
-                    eta_str = f"{int(eta)} dtk"
+            for off in sorted(page_results.keys()):
+                all_records.extend(page_results[off])
+        else:
+            offset = 0
+            while True:
+                q = client.table("pkk_records").select("*")
+                if port_codes:
+                    q = q.in_("port_code", port_codes)
+                if year:
+                    q = q.eq("year", year)
+                if angkutan and len(angkutan) == 1:
+                    q = q.eq("angkutan", angkutan[0])
 
-                progress_bar.progress(pct)
-                status_box.markdown(
-                    f"**{label}**\n\n"
-                    f"📊 **Progress**: `{current_count:,}` dari `{total_count:,}` record (**{pct*100:.1f}%**)\n\n"
-                    f"⚡ **Kecepatan**: `{int(speed):,}` record/detik | ⏳ **Perkiraan Waktu Tersisa (ETA)**: `{eta_str}`"
-                )
-            else:
-                progress_bar.progress(0.5)
+                response = q.range(offset, offset + page_size - 1).execute()
+                if not response.data:
+                    break
+
+                all_records.extend(response.data)
+                current_count = len(all_records)
+                offset += page_size
+
+                elapsed = time.time() - start_time
+                speed = current_count / elapsed if elapsed > 0 else 0
+
                 status_box.markdown(
                     f"**{label}**\n\n"
                     f"📊 **Progress**: `{current_count:,}` record terunduh...\n\n"
                     f"⚡ **Kecepatan**: `{int(speed):,}` record/detik"
                 )
 
-            if len(response.data) < page_size:
-                break
+                if len(response.data) < page_size:
+                    break
 
         progress_bar.progress(1.0)
         total_time = time.time() - start_time
-        status_box.success(f"✅ Berhasil mengunduh `{len(all_records):,}` record dari Supabase dalam `{total_time:.1f}` detik.")
+        status_box.success(f"✅ Berhasil memuat SELURUH `{len(all_records):,}` record dari Supabase dalam `{total_time:.1f}` detik.")
 
         if not all_records:
             return pd.DataFrame()
