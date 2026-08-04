@@ -35,6 +35,42 @@ def is_connected() -> bool:
         return False
 
 
+MAX_SUPABASE_RECORDS = 1_500_000
+
+def get_supabase_quota_limit() -> int:
+    """Mengembalikan batas maksimal kuota penyimpanan Supabase (default 1,500,000)."""
+    try:
+        if "MAX_SUPABASE_RECORDS" in st.secrets:
+            return int(st.secrets["MAX_SUPABASE_RECORDS"])
+    except Exception:
+        pass
+    return MAX_SUPABASE_RECORDS
+
+
+def render_quota_full_dialog():
+    """
+    Menampilkan popup dialog / notifikasi jika kuota penyimpanan Supabase sudah penuh.
+    """
+    narrative = (
+        "👋 **Halo!**\n\n"
+        "🌐 **Informasi dari Sistem:**\n"
+        "Kuota penyimpanan data Supabase Anda saat ini **sudah penuh**.\n\n"
+        "Harap menghubungi **Mas Eka** jika Anda ingin melanjutkan pengisian atau meningkatkan kapasitas data.\n\n"
+        "Terima kasih banyak atas kerjasamanya! 🙏😊"
+    )
+    if hasattr(st, "dialog"):
+        @st.dialog("⚠️ Kuota Penyimpanan Supabase Penuh")
+        def _show_dialog():
+            st.warning("⚠️ **Penyimpanan Penuh**")
+            st.markdown(narrative)
+            if st.button("OK, Mengerti", type="primary", width="stretch"):
+                st.rerun()
+        _show_dialog()
+    else:
+        st.error("⚠️ **Kuota Penyimpanan Supabase Penuh**")
+        st.info(narrative)
+
+
 # ──────────────────────────────────────────────────────────────
 # INSERT / UPSERT
 # ──────────────────────────────────────────────────────────────
@@ -59,6 +95,16 @@ def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callbac
     client = get_supabase_client()
     if client is None:
         return {"success": False, "inserted": 0, "error": "Supabase tidak terkonfigurasi."}
+
+    # Cek kuota penyimpanan Supabase
+    db_stats = get_database_stats()
+    if db_stats.get("is_full", False):
+        return {
+            "success": False,
+            "inserted": 0,
+            "is_quota_full": True,
+            "error": "Kuota data Supabase sudah penuh. Harap menghubungi Mas Eka untuk melanjutkan."
+        }
 
     # Siapkan data: rename kolom agar sesuai skema Supabase
     col_map = {
@@ -412,11 +458,20 @@ def check_and_clean_db_duplicates(progress_callback=None) -> dict:
 
 def get_database_stats() -> dict:
     """
-    Mengembalikan statistik metrik ringkas dari tabel pkk_records di Supabase.
+    Mengembalikan statistik metrik ringkas dan kuota penyimpanan dari tabel pkk_records di Supabase.
     """
     client = get_supabase_client()
+    max_quota = get_supabase_quota_limit()
     if client is None:
-        return {"connected": False, "total_records": 0, "unique_ports": 0, "error": "Supabase tidak terkonfigurasi"}
+        return {
+            "connected": False,
+            "total_records": 0,
+            "max_quota": max_quota,
+            "quota_pct": 0.0,
+            "is_full": False,
+            "unique_ports": 0,
+            "error": "Supabase tidak terkonfigurasi"
+        }
 
     try:
         # Request total count
@@ -426,15 +481,29 @@ def get_database_stats() -> dict:
         # Unique ports
         codes = get_available_ports_from_db()
 
+        quota_pct = round(total_records / max_quota * 100, 1) if max_quota > 0 else 0.0
+        is_full = total_records >= max_quota
+
         return {
             "connected": True,
             "total_records": total_records,
+            "max_quota": max_quota,
+            "quota_pct": min(100.0, quota_pct),
+            "is_full": is_full,
             "unique_ports": len(codes),
             "available_port_codes": codes,
             "error": None
         }
     except Exception as e:
-        return {"connected": False, "total_records": 0, "unique_ports": 0, "error": str(e)}
+        return {
+            "connected": False,
+            "total_records": 0,
+            "max_quota": max_quota,
+            "quota_pct": 0.0,
+            "is_full": False,
+            "unique_ports": 0,
+            "error": str(e)
+        }
 
 
 def fetch_pkk_records_paginated(

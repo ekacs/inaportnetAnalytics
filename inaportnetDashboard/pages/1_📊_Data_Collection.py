@@ -11,7 +11,8 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
-    deduplicate_dataframe, clean_and_deduplicate_pkk_rpc
+    deduplicate_dataframe, clean_and_deduplicate_pkk_rpc,
+    get_database_stats, render_quota_full_dialog
 )
 from modules.theme import render_theme_selector
 
@@ -66,10 +67,18 @@ with st.sidebar:
     st.page_link("pages/4_🗺️_Port_Classification.py",    label="Port Classification")
     st.page_link("pages/5_🗄️_Database_Viewer.py",        label="Database Viewer")
     st.markdown("---")
-    db_ok = is_connected()
+    db_stats = get_database_stats()
+    db_ok = db_stats.get("connected", False)
     st.markdown("**Status Database**")
     if db_ok:
         st.success("✅ Supabase Terhubung")
+        tot_rec = db_stats.get("total_records", 0)
+        max_q = db_stats.get("max_quota", 1500000)
+        pct_q = db_stats.get("quota_pct", 0.0)
+        if db_stats.get("is_full", False):
+            st.error(f"⚠️ Kuota Penuh: {tot_rec:,} / {max_q:,} ({pct_q}%)")
+        else:
+            st.caption(f"📊 **Kuota Storage:** {tot_rec:,} / {max_q:,} ({pct_q}%)")
     else:
         st.warning("⚠️ Supabase Tidak Terhubung")
 

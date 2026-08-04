@@ -187,10 +187,13 @@ with c3:
     </div>
     """, unsafe_allow_html=True)
 with c4:
-    st.markdown("""
+    tot_r = db_stats.get('total_records', 0)
+    max_q = db_stats.get('max_quota', 1500000)
+    pct_q = db_stats.get('quota_pct', 0.0)
+    st.markdown(f"""
     <div class="metric-card">
-        <div class="val">Active</div>
-        <div class="label">Status Server</div>
+        <div class="val">{pct_q:.1f}%</div>
+        <div class="label">Kuota Storage ({tot_r:,}/{max_q:,})</div>
         <div class="sub">Supabase Cloud</div>
     </div>
     """, unsafe_allow_html=True)

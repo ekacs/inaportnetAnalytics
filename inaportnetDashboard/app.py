@@ -3,7 +3,7 @@ app.py — Halaman Utama Inaportnet Analytics Dashboard
 """
 
 import streamlit as st
-from modules.database import is_connected
+from modules.database import is_connected, get_database_stats
 from modules.theme import render_theme_selector
 
 # ──────────────────────────────────────────────────────────────
@@ -118,11 +118,18 @@ with st.sidebar:
     st.page_link("pages/5_🗄️_Database_Viewer.py",               label="Database Viewer")
     st.markdown("---")
 
-    # Status koneksi database
+    # Status koneksi & kuota database
     st.markdown("**Status Database**")
-    db_connected = is_connected()
-    if db_connected:
+    db_stats = get_database_stats()
+    if db_stats.get("connected", False):
         st.markdown('<span class="status-ok">✅ Supabase Terhubung</span>', unsafe_allow_html=True)
+        tot_rec = db_stats.get("total_records", 0)
+        max_q = db_stats.get("max_quota", 1500000)
+        pct_q = db_stats.get("quota_pct", 0.0)
+        if db_stats.get("is_full", False):
+            st.markdown(f'<span class="status-err">⚠️ Kuota Penuh: {tot_rec:,} / {max_q:,} ({pct_q}%)</span>', unsafe_allow_html=True)
+        else:
+            st.caption(f"📊 **Kuota Storage:** {tot_rec:,} / {max_q:,} ({pct_q}%)")
     else:
         st.markdown('<span class="status-warn">⚠️ Supabase Tidak Terhubung</span>', unsafe_allow_html=True)
 
