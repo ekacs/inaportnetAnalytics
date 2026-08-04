@@ -1,11 +1,11 @@
-# 🚢 Inaportnet Analytics (feat. AHP Scientifically Weighted)
+# 🚢 Inaportnet Analytics (feat. AHP Scientifically Weighted & Analytics Advisor)
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-FF4B4B.svg)](https://streamlit.io/)
 [![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E.svg)](https://supabase.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Platform analitik dan pemantauan performa layanan **Inaportnet (Kementerian Perhubungan Republik Indonesia)** mencakup **259+ pelabuhan di seluruh Indonesia** sepanjang tahun 2025. Platform ini mengevaluasi kepatuhan *Service Level Agreement* (SLA approval < 30 menit) persetujuan kedatangan kapal (PKK) serta mengklasifikasikan efisiensi operasional pelabuhan berbasis metode saintifik **Analytical Hierarchy Process (AHP)**.
+Platform analitik dan pemantauan performa layanan **Inaportnet (Kementerian Perhubungan Republik Indonesia)** mencakup **259+ pelabuhan di seluruh Indonesia** sepanjang tahun 2025. Platform ini mengevaluasi kepatuhan *Service Level Agreement* (SLA approval < 30 menit) persetujuan kedatangan kapal (PKK) serta mengklasifikasikan efisiensi operasional pelabuhan berbasis metode saintifik **Analytical Hierarchy Process (AHP)** dan dilengkapi fitur cerdas **Analytics Advisor (Policy & Risk)**.
 
 ---
 
@@ -25,7 +25,7 @@ Platform analitik dan pemantauan performa layanan **Inaportnet (Kementerian Perh
 
 ## 📌 Tentang Aplikasi
 
-Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilitas komprehensif terhadap performa operasional pelayanan publik di sektor maritim Indonesia. Dengan mengintegrasikan otomatisasi pengumpulan data (*web scraping*), pembersihan data terstruktur (*preprocessing & deduplication*), penyimpan berbasis awan (*Supabase Cloud*), serta metode pengambilan keputusan kriteria majemuk (**AHP Saaty 1-9**), platform ini menyajikan analisis 4 kuadran pelabuhan secara objektif untuk mendukung perumusan kebijakan logistik nasional.
+Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilitas komprehensif terhadap performa operasional pelayanan publik di sektor maritim Indonesia. Dengan mengintegrasikan otomatisasi pengumpulan data (*web scraping*), pembersihan data terstruktur (*preprocessing & deduplication*), penyimpanan berbasis awan (*Supabase Cloud* dengan mesin pengunduh multithreading), metode pengambilan keputusan kriteria majemuk (**AHP Saaty 1-9**), serta modul kecerdasan **Analytics Advisor**, platform ini menyajikan analisis 4 kuadran pelabuhan secara objektif untuk mendukung perumusan kebijakan logistik nasional.
 
 **Demo aplikasi 👇**
 
@@ -44,21 +44,26 @@ Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilita
 ## 🎯 Kegunaan & Fitur Utama
 
 1. **🌐 Data Collection & Automated Ingestion (`1_📊_Data_Collection.py`)**:
-
    - **Web Scraping**: Pengambilan data PKK otomatis dari portal resmi Inaportnet Dephub per pelabuhan, tahun, dan jenis angkutan (domestik `dn` & luar negeri `ln`).
    - **Upload Multi-Format**: Unggah file eksternal skala besar (`.csv`, `.xlsx`, `.zip`, `.parquet`) hingga **500 MB** dengan parsing multi-threading PyArrow.
-   - **Automatic Cloud Ingestion**: Data yang berhasil dikumpulkan/diunggah otomatis tersimpan ke **Supabase Cloud** secara *streaming batch* tanpa memerlukan intervensi manual.
-2. **🚦 Traffic Overview (`2_🚦_Traffic_Overview.py`)**:
+   - **Tab 3: ☁️ Load dari Supabase**: Fitur sinkronisasi langsung data Supabase dengan *real-time metrics*, *interactive progress bar*, dan perkiraan waktu selesai (*ETA timer*).
+   - **Global Sidebar Sync Widget**: Widget sinkronisasi cepat yang tersedia di sidebar seluruh halaman dasbor.
 
-   - Analisis volume pergerakan kedatangan kapal (PKK) tahunan, bulanan, dan kuartalan.
+2. **🗄️ Live Database Viewer (`2_🗄️_Database_Viewer.py`)**:
+   - Ditempatkan tepat setelah Data Collection untuk navigasi cepat penjelajahan database.
+   - Penjelajah tabel Supabase secara *live* dengan pencarian kata kunci interaktif & pagination.
+   - Ekspor data hasil olahan ke format **CSV**, **Excel** (dengan pembersihan otomatis zona waktu), **JSON**, dan **SQL Dump**.
+
+3. **🚦 Traffic Overview (`3_🚦_Traffic_Overview.py`)**:
+   - Analisis volume pergerakan kedatangan kapal (PKK) tahunan, bulanan, harian, dan jam sibuk.
    - Filter interaktif per pelabuhan dan jenis angkutan domestik vs luar negeri.
-3. **📋 Service Performance & SLA Monitoring (`3_📋_Service_Performance.py`)**:
 
+4. **📋 Service Performance & SLA Monitoring (`4_📋_Service_Performance.py`)**:
    - Evaluasi durasi waktu persetujuan (*approval time*) dari submit pengajuan hingga terbit izin.
    - Indikator Kepatuhan SLA (Standar < 31 menit): Tingkat persentase kelulusan SLA, rata-rata durasi, dan nilai median durasi.
    - Distribusi statistik dan visualisasi boxplot per pelabuhan.
-4. **🗺️ Port Classification & AHP Index (`4_🗺️_Port_Classification.py`)**:
 
+5. **🗺️ Port Classification & AHP Index (`5_🗺️_Port_Classification.py`)**:
    - **Skema AHP Scientifically Weighted**: Pembobotan 4 kriteria utama (*Compliance Index*, *Robustness Index*, *Efficiency Index*, dan *Consistency Index*) dengan skala perbandingan berpasangan Saaty (1-9) dan rasio konsistensi **Consistency Ratio (CR = 0.0402 < 0.10)**.
    - **Analisis 4 Kuadran Pelabuhan**:
      - 🏆 **Benchmark Port**: Volume tinggi & performa efisien.
@@ -66,10 +71,15 @@ Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilita
      - 🚦 **Congested Port**: Workload sangat tinggi yang mengalami potensi *bottleneck*.
      - 🛠️ **Developing Port**: Pelabuhan yang memerlukan peningkatan efisiensi operasional.
    - Skema perbandingan bobot (*AHP Saaty* vs *Equal Weight 25%* vs *Custom Weight*).
-5. **🗄️ Live Database Viewer (`5_🗄️_Database_Viewer.py`)**:
 
-   - Penjelajah tabel Supabase secara *live* dengan pencarian kata kunci interaktif & pagination.
-   - Ekspor data hasil olahan ke format **CSV** dan **Excel**.
+6. **🤖 Analytics Advisor (Policy & Risk) (`6_🤖_Analytics_Advisor.py`)**:
+   - **Halaman Dedicated Baru**: Terletak setelah Port Classification dengan tampilan antarmuka *glassmorphism executive layout*.
+   - **Evaluasi Pelabuhan Spesifik**: Pilih pelabuhan dari dropdown interaktif untuk memperoleh 5 poin pendapat analisis AI:
+     1. **Bobot Prioritas AHP & Evaluasi Kriteria**: Breakdown skor kriteria pelabuhan terpilih ($S_{CI}, S_{RI}, S_{EI}, S_{CsI}$) beserta bobot global ($W_{CI}=47.1\%, W_{RI}=28.4\%, W_{EI}=17.2\%, W_{CsI}=7.4\%$).
+     2. **Simpulan Uji Konsistensi Saaty (CR vs CI)**: Verifikasi matematis konsistensi matriks perbandingan berpasangan ($CR = 4.02\% \le 10\%$).
+     3. **Implikasi Kebijakan Operasional**: Rekomendasi manajerial strategis bagi pimpinan Kemenhub & Pelindo.
+     4. **Pernyataan Risiko Masa Depan**: Proyeksi dampak (*Demurrage Cost*, *Supply Chain Bottleneck*, dan *LPI Reputation Impact*) lengkap dengan *Badge* Profil Risiko (**RENDAH**, **SEDANG**, **TINGGI**).
+     5. **Tabel Peringkat Kinerja Pelabuhan Lengkap**: Tabel pembanding peringkat seluruh pelabuhan nasional dari yang terbaik (#1) hingga terburuk (#N).
 
 ---
 
@@ -83,9 +93,10 @@ Aplikasi **Inaportnet Analytics Dashboard** dibangun untuk memberikan visibilita
    │        Streamlit Frontend (Inaportnet Dashboard)       │
    ├────────────────────────────────────────────────────────┤
    │  • Data Scraper Engine      • Preprocessing Pipeline   │
-   │  • AHP Calculation Engine   • Plotly Visualizations    │
+   │  • AHP Calculation Engine   • Analytics Advisor AI     │
+   │  • Multithreaded Ingestor   • Plotly Visualizations    │
    └──────────────────────────┬─────────────────────────────┘
-                              │ Streaming Batch Insert
+                              │ Streaming Batch / Parallel Threading
                               ▼
                 ┌───────────────────────────┐
                 │   Supabase Cloud DB       │
@@ -112,18 +123,19 @@ inaportnetAnalytics/
 │   │   └── secrets.toml           # Kredensial Supabase (URL & Service Role Key)
 │   │
 │   ├── modules/                   # Modul Logika & Core Engine
-│   │   ├── database.py            # Operasi CRUD, Quota Checking, & Supabase Client
+│   │   ├── database.py            # Operasi CRUD, Multithread Ingestion, & Supabase Client
 │   │   ├── scraper.py             # Engine web-scraping portal Inaportnet
 │   │   ├── preprocessing.py       # Pembersihan data & validasi file
-│   │   ├── analysis.py            # Kalkulasi Indeks Performa PSPI & AHP Matrix
+│   │   ├── analysis.py            # Kalkulasi Indeks Performa PSPI, AHP Matrix, & AI Advisor
 │   │   └── visualization.py       # Grafik interaktif Plotly
 │   │
 │   └── pages/                     # Halaman Multi-Page Dashboard
-│       ├── 1_📊_Data_Collection.py
-│       ├── 2_🚦_Traffic_Overview.py
-│       ├── 3_📋_Service_Performance.py
-│       ├── 4_🗺️_Port_Classification.py
-│       └── 5_🗄️_Database_Viewer.py
+│       ├── 1_📊_Data_Collection.py     # Scraping, Upload, & Sync Supabase
+│       ├── 2_🗄️_Database_Viewer.py     # Live Database Explorer & Multi-Format Export
+│       ├── 3_🚦_Traffic_Overview.py     # Analisis Volume & Tren PKK
+│       ├── 4_📋_Service_Performance.py # Analisis SLA & Durasi Approval
+│       ├── 5_🗺️_Port_Classification.py # Klasifikasi Kuadran & AHP Index
+│       └── 6_🤖_Analytics_Advisor.py   # AI Policy & Risk Advisor Pelabuhan
 │
 ├── workflow.md                    # Dokumentasi alur kerja analisis
 └── README.md                      # Dokumentasi Utama Repository
@@ -205,8 +217,8 @@ inaportnetAnalytics/
    - Apabila batas kuota tercapai, aplikasi akan otomatis menghentikan penambahan data dan menampilkan notifikasi pop-up ramah pengguna untuk koordinasi peningkatan kapasitas.
 2. **Dependensi Server Inaportnet**:
    - Kecepatan modul *web scraping* bergantung pada responsivitas dan kestabilan peramban server monitoring portal Inaportnet Dephub.
-3. **Kapasitas Memori RAM Peramban (File Eksternal)**:
-   - Pembacaan file eksternal super masif di atas **500 MB** disarankan dikompresi ke format `.zip` atau `.parquet` untuk mencegah kehabisan memori (*MemoryError*).
+3. **Optimasi Pengunduhan Multithread**:
+   - Penarikan seluruh data skala besar (>1.000.000 record) dari Supabase menggunakan mesin *multithreaded fetcher* (5 parallel workers dengan *exponential retry backoff*) untuk menghindari batas PostgREST API dan mencegah error socket OS (`Errno 11`).
 
 ---
 

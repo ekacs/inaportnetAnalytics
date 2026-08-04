@@ -239,8 +239,9 @@ with col_how:
         ("2", "Pilih pelabuhan, tahun, dan jenis angkutan"),
         ("3", "Klik **Mulai Scraping** atau upload file / load dari Supabase"),
         ("4", "Data otomatis tersimpan ke Supabase dan session"),
-        ("5", "Jelajahi analisis di halaman **Traffic**, **SLA**, dan **Klasifikasi**"),
+        ("5", "Jelajahi analisis di halaman **Traffic Overview**, **Service Performance**, **Port Classification**"),
         ("6", "Ekspor hasil analisis ke CSV atau Excel"),
+        ("7", "Gunakan fitur **Analytics Advisor** untuk mendapatkan bahan evaluasi pelabuhan"),
     ]
     for num, txt in steps:
         st.markdown(f"""
@@ -280,7 +281,7 @@ st.markdown("""
         Transforming Inaportnet port operational data into actionable strategic insights across 259 ports in Indonesia. 🌊⚓
     </p>
     <div style="display: inline-block; background: rgba(255,255,255,0.12); padding: 0.6rem 1.4rem; border-radius: 30px; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2);">
-        ☕ <b>Suka dengan platform ini?</b> Traktir kopi untuk kami biar makin semangat berinovasi!
+        ☕ <b>Suka dengan platform ini?</b> klik disini <a href="https://saweria.co/auditorzamannow">Traktir kopi</a> biar makin semangat berinovasi!
     </div>
 </div>
 """, unsafe_allow_html=True)
