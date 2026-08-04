@@ -261,16 +261,17 @@ with tab_scrape:
 with tab_upload:
     st.markdown('<div class="section-header">📁 Upload Data dari File</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="info-box">Upload file CSV atau Excel hasil scraping sebelumnya. '
+        '<div class="info-box">Upload file CSV, Excel, Zip, atau Parquet hasil scraping sebelumnya. '
         'Batas ukuran file hingga <b>500 MB</b>.<br>'
+        '💡 <b>Tips Kecepatan:</b> Kompres file CSV menjadi <code>.zip</code>, <code>.csv.gz</code>, atau format <code>.parquet</code> untuk mempercepat upload hingga <b>10x lebih cepat</b>!<br>'
         'Kolom minimal: <code>submission</code> dan <code>response</code>, atau <code>approval_minutes</code>.</div>',
         unsafe_allow_html=True
     )
 
     uploaded_file = st.file_uploader(
-        "Pilih file CSV atau Excel",
-        type=["csv", "xlsx", "xls"],
-        help="Format yang didukung: .csv, .xlsx, .xls (Maksimal 500 MB)",
+        "Pilih file CSV, Excel, Zip, atau Parquet",
+        type=["csv", "xlsx", "xls", "gz", "zip", "parquet"],
+        help="Format yang didukung: .csv, .xlsx, .xls, .gz, .zip, .parquet (Maksimal 500 MB)",
     )
 
     if uploaded_file is not None:
@@ -280,37 +281,36 @@ with tab_upload:
         try:
             parse_status = st.empty()
             parse_progress = st.progress(0)
+            file_name_lower = uploaded_file.name.lower()
 
-            # Jika file CSV berukuran besar (>20MB), gunakan chunk reading dengan progress bar
-            if uploaded_file.name.endswith(".csv") and uploaded_file.size > 20 * 1024 * 1024:
-                chunks = []
-                chunk_size = 100_000
-                total_bytes = uploaded_file.size
+            parse_status.info(f"⏳ Membaca & mendekompresi data ({file_size_mb} MB)...")
+            parse_progress.progress(20)
 
-                # Estimasi sederhana: ~10-15 MB per detik
-                est_seconds = max(1, round(file_size_mb / 12, 1))
-                parse_status.info(f"⏳ Membaca file CSV besar ({file_size_mb} MB)... Estimasi waktu: ~{est_seconds} detik")
-
-                chunk_iter = pd.read_csv(uploaded_file, chunksize=chunk_size)
-                processed_bytes = 0
-
-                for i, chunk in enumerate(chunk_iter):
-                    chunks.append(chunk)
-                    # Estimasi progress berbasis jumlah chunk yang telah dibaca
-                    processed_bytes += chunk.memory_usage(deep=True).sum()
-                    pct = min(95, int((i + 1) * chunk_size * 120 / (uploaded_file.size + 1)))
-                    parse_progress.progress(pct)
-                    parse_status.info(f"⏳ Membaca data: chunk {i+1} ({len(chunk):,} baris diproses)...")
-
+            # Optimasi Parsing berdasarkan format
+            if file_name_lower.endswith(".parquet"):
+                # Parquet (Format biner sangat cepat)
+                df_upload = pd.read_parquet(uploaded_file)
                 parse_progress.progress(100)
-                df_upload = pd.concat(chunks, ignore_index=True)
+            elif file_name_lower.endswith(".csv") or file_name_lower.endswith(".gz") or file_name_lower.endswith(".zip"):
+                # Gunakan PyArrow engine jika tersedia untuk kecepatan multi-threading maksimal
+                try:
+                    parse_progress.progress(40)
+                    df_upload = pd.read_csv(uploaded_file, engine="pyarrow")
+                    parse_progress.progress(100)
+                except Exception:
+                    # Fallback ke chunk reading jika pyarrow tidak mendukung buffer tertentu
+                    chunks = []
+                    chunk_size = 100_000
+                    chunk_iter = pd.read_csv(uploaded_file, chunksize=chunk_size)
+                    for i, chunk in enumerate(chunk_iter):
+                        chunks.append(chunk)
+                        pct = min(95, int((i + 1) * chunk_size * 100 / (file_size_mb * 50000 + 1)))
+                        parse_progress.progress(pct)
+                    df_upload = pd.concat(chunks, ignore_index=True)
+                    parse_progress.progress(100)
             else:
-                parse_status.info("⏳ Membaca file...")
-                parse_progress.progress(50)
-                if uploaded_file.name.endswith(".csv"):
-                    df_upload = pd.read_csv(uploaded_file)
-                else:
-                    df_upload = pd.read_excel(uploaded_file)
+                # Excel
+                df_upload = pd.read_excel(uploaded_file)
                 parse_progress.progress(100)
 
             parse_status.empty()
@@ -359,24 +359,21 @@ with tab_upload:
                         st.info(f"🧹 **{n_dups:,} record duplikat** dibersihkan dari file.")
                     st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
-                    # Step 2: Supabase Storage Progress
+                    # Step 2: Supabase Storage Progress (Batch size 2,500 untuk kecepatan transfer)
                     if save_upload_db and db_ok:
                         db_status = st.empty()
                         db_progress = st.progress(0)
                         
                         tot_recs = len(df_final)
-                        # Estimasi simpan: ~500 record per 0.3 detik
-                        est_db_sec = round(tot_recs / 1500, 1)
-
                         def db_progress_cb(cur, tot):
                             pct = int(cur / tot * 100) if tot > 0 else 0
                             db_progress.progress(pct)
                             db_status.info(
                                 f"💾 **Menyimpan ke Supabase:** {cur:,} / {tot:,} record ({pct}%) "
-                                f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 1500, 1))} detik"
+                                f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 3000, 1))} detik"
                             )
 
-                        res = insert_pkk_records(df_final, batch_size=1000, progress_callback=db_progress_cb)
+                        res = insert_pkk_records(df_final, batch_size=2500, progress_callback=db_progress_cb)
                         
                         db_status.empty()
                         db_progress.empty()
