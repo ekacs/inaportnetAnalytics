@@ -124,6 +124,7 @@ with st.sidebar:
     st.page_link("pages/3_🚦_Traffic_Overview.py",              label="Traffic Overview")
     st.page_link("pages/4_📋_Service_Performance.py",           label="Service Performance")
     st.page_link("pages/5_🗺️_Port_Classification.py",           label="Port Classification")
+    st.page_link("pages/6_🤖_Analytics_Advisor.py",              label="Analytics Advisor")
     st.markdown("---")
 
     # Status koneksi & kuota database
