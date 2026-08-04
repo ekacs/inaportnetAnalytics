@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import io
+import os
 from modules.analysis import (
     compute_port_summary, compute_performance_indices, classify_quadrant,
     AHP_DEFAULT_WEIGHTS, EQUAL_WEIGHTS, calculate_ahp_matrix_consistency,
@@ -114,6 +115,32 @@ with st.sidebar:
 # ── Header ────────────────────────────────────────────────────
 st.title("🗺️ Port Classification & AHP Performance Index")
 st.markdown("Klasifikasi 4 kuadran pelabuhan berbasis **Analytical Hierarchy Process (AHP Saaty 1-9)** dan **Volume PKK**.")
+
+# ── Informasi & Download Tool AHP (Excel Reference) ─────────────
+ahp_file_paths = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "papers", "AHP_Analysis_Tool rev.xlsx")),
+    os.path.abspath(os.path.join("papers", "AHP_Analysis_Tool rev.xlsx")),
+    os.path.abspath(os.path.join("..", "papers", "AHP_Analysis_Tool rev.xlsx")),
+]
+target_ahp_path = next((p for p in ahp_file_paths if os.path.exists(p)), None)
+
+with st.expander("📄 Informasi & Download Model Kalkulator AHP (Excel Reference)", expanded=False):
+    st.markdown(
+        "File **`AHP_Analysis_Tool rev.xlsx`** berisi model spreadsheet kalkulasi instrumen **Analytical Hierarchy Process (AHP)** "
+        "yang meliputi matriks perbandingan berpasangan (*Pairwise Comparison Matrix*) 4 kriteria utama "
+        "(*Compliance Index*, *Robustness Index*, *Efficiency Index*, dan *Consistency Index*), "
+        "perhitungan eigenvector bobot indikator (*Scientifically Weighted*), serta pengujian rasio konsistensi "
+        "(*Consistency Ratio* / CR = 0.0402 < 0.10) sebagai dasar ilmiah pembobotan indeks performa."
+    )
+    if target_ahp_path and os.path.exists(target_ahp_path):
+        with open(target_ahp_path, "rb") as f:
+            st.download_button(
+                label="📥 Download AHP_Analysis_Tool rev.xlsx",
+                data=f.read(),
+                file_name="AHP_Analysis_Tool_rev.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="btn_download_ahp_tool"
+            )
 
 df_raw = st.session_state.get("df", pd.DataFrame())
 if df_raw.empty:

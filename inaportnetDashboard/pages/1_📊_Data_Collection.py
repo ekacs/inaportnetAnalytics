@@ -1,7 +1,6 @@
 """
 pages/1_📊_Data_Collection.py
-Halaman pengumpulan data: scraping Inaportnet, upload file eksternal,
-load dari Supabase, dan ekspor data.
+Halaman pengumpulkan data: scraping Inaportnet & upload file eksternal (otomatis tersimpan ke Supabase).
 """
 
 import streamlit as st
@@ -99,11 +98,9 @@ port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} 
 # ════════════════════════════════════════════════════════════════
 # TAB LAYOUT
 # ════════════════════════════════════════════════════════════════
-tab_scrape, tab_upload, tab_supabase, tab_export = st.tabs([
+tab_scrape, tab_upload = st.tabs([
     "🌐 Scraping",
     "📁 Upload File",
-    "🗄️ Load dari Supabase",
-    "💾 Ekspor Data",
 ])
 
 # ────────────────────────────────────────────────────────────────
@@ -422,120 +419,3 @@ with tab_upload:
             )
         except Exception as e:
             st.error(f"❌ **Gagal membaca file:** {e}")
-
-# ────────────────────────────────────────────────────────────────
-# TAB 3 — LOAD DARI SUPABASE
-# ────────────────────────────────────────────────────────────────
-with tab_supabase:
-    st.markdown('<div class="section-header">🗄️ Muat Data dari Supabase</div>', unsafe_allow_html=True)
-
-    if not is_connected():
-        st.error("❌ Supabase tidak terhubung. Isi kredensial di `.streamlit/secrets.toml`.")
-        st.code(
-            'SUPABASE_URL = "https://xxxx.supabase.co"\nSUPABASE_KEY = "your-anon-key"',
-            language="toml"
-        )
-    else:
-        st.success("✅ Koneksi Supabase aktif.")
-
-        col_db1, col_db2, col_db3 = st.columns(3)
-
-        with col_db1:
-            year_db = st.selectbox("📅 Tahun", [2025, 2024], key="year_db")
-
-        with col_db2:
-            angkutan_db = st.multiselect(
-                "🚢 Jenis Angkutan",
-                ["dn — Domestik", "ln — Luar Negeri"],
-                default=["dn — Domestik", "ln — Luar Negeri"],
-                key="angkutan_db",
-            )
-            angkutan_db_codes = [x.split(" — ")[0] for x in angkutan_db]
-
-        with col_db3:
-            filter_port_db = st.multiselect(
-                "🏗️ Filter Pelabuhan (opsional)",
-                options=port_labels,
-                placeholder="Kosongkan = semua pelabuhan",
-                key="port_db",
-            )
-            filter_codes_db = [port_code_of[lbl] for lbl in filter_port_db if lbl in port_code_of]
-
-        if st.button("📥 Muat dari Supabase", type="primary", width="stretch"):
-            with st.spinner("Mengambil data dari Supabase (mungkin memerlukan beberapa saat)..."):
-                df_db = fetch_pkk_records(
-                    port_codes=filter_codes_db if filter_codes_db else None,
-                    year=year_db,
-                    angkutan=angkutan_db_codes if len(angkutan_db_codes) < 2 else None,
-                )
-
-            if df_db.empty:
-                st.warning("⚠️ Tidak ada data ditemukan dengan filter tersebut.")
-            else:
-                st.session_state["df"] = df_db
-                st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari Supabase.")
-                with st.expander("🔍 Preview Data"):
-                    st.dataframe(df_db.head(20), width="stretch")
-
-# ────────────────────────────────────────────────────────────────
-# TAB 4 — EKSPOR DATA
-# ────────────────────────────────────────────────────────────────
-with tab_export:
-    st.markdown('<div class="section-header">💾 Ekspor Data</div>', unsafe_allow_html=True)
-
-    df_current = st.session_state.get("df", pd.DataFrame())
-
-    if df_current.empty:
-        st.warning("⚠️ Belum ada data di sesi. Silakan ambil atau muat data terlebih dahulu.")
-    else:
-        st.success(f"✅ Data siap diekspor: **{len(df_current):,} record**")
-
-        col_ex1, col_ex2 = st.columns(2)
-
-        # Export CSV
-        with col_ex1:
-            st.markdown("#### 📄 Export CSV")
-            csv_buf = df_current.to_csv(index=False, encoding="utf-8-sig")
-            st.download_button(
-                label="⬇️ Download CSV",
-                data=csv_buf,
-                file_name="inaportnet_pkk_2025.csv",
-                mime="text/csv",
-                width="stretch",
-            )
-
-        # Export Excel
-        with col_ex2:
-            st.markdown("#### 📊 Export Excel")
-            excel_buf = io.BytesIO()
-            with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                df_current.to_excel(writer, sheet_name="Data PKK", index=False)
-
-                # Sheet ringkasan per pelabuhan
-                if "port_code" in df_current.columns and "approval_minutes" in df_current.columns:
-                    from modules.analysis import compute_port_summary
-                    summary = compute_port_summary(df_current)
-                    if not summary.empty:
-                        summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
-
-            excel_buf.seek(0)
-            st.download_button(
-                label="⬇️ Download Excel",
-                data=excel_buf,
-                file_name="inaportnet_pkk_2025.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                width="stretch",
-            )
-
-        # Preview kolom
-        st.markdown("#### 🔍 Preview Data")
-        st.dataframe(df_current.head(20), width="stretch")
-
-        col_stat1, col_stat2, col_stat3 = st.columns(3)
-        with col_stat1:
-            st.metric("Total Record", f"{len(df_current):,}")
-        with col_stat2:
-            st.metric("Jumlah Kolom", len(df_current.columns))
-        with col_stat3:
-            if "port_code" in df_current.columns:
-                st.metric("Pelabuhan Unik", df_current["port_code"].nunique())
