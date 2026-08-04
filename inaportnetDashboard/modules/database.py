@@ -297,15 +297,22 @@ def fetch_pkk_records_with_progress(
     all_records = []
 
     def fetch_page(offset_val):
-        q = client.table("pkk_records").select("*")
-        if port_codes:
-            q = q.in_("port_code", port_codes)
-        if year:
-            q = q.eq("year", year)
-        if angkutan and len(angkutan) == 1:
-            q = q.eq("angkutan", angkutan[0])
-        res = q.range(offset_val, offset_val + page_size - 1).execute()
-        return offset_val, res.data if res.data else []
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                q = client.table("pkk_records").select("*")
+                if port_codes:
+                    q = q.in_("port_code", port_codes)
+                if year:
+                    q = q.eq("year", year)
+                if angkutan and len(angkutan) == 1:
+                    q = q.eq("angkutan", angkutan[0])
+                res = q.range(offset_val, offset_val + page_size - 1).execute()
+                return offset_val, res.data if res.data else []
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                time.sleep(0.3 * (attempt + 1))
 
     try:
         if total_count > 0:
@@ -314,31 +321,35 @@ def fetch_pkk_records_with_progress(
             page_results = {}
             completed_pages = 0
 
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                future_to_offset = {executor.submit(fetch_page, off): off for off in offsets}
-                for future in as_completed(future_to_offset):
-                    off, data = future.result()
-                    page_results[off] = data
-                    completed_pages += 1
+            # Batching per 50 halaman dengan max 5 parallel worker untuk mencegah socket limit OS / Supabase
+            batch_chunk_size = 50
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                for i in range(0, len(offsets), batch_chunk_size):
+                    chunk_offsets = offsets[i:i + batch_chunk_size]
+                    future_to_offset = {executor.submit(fetch_page, off): off for off in chunk_offsets}
+                    for future in as_completed(future_to_offset):
+                        off, data = future.result()
+                        page_results[off] = data
+                        completed_pages += 1
 
-                    current_count = sum(len(v) for v in page_results.values())
-                    elapsed = time.time() - start_time
-                    speed = current_count / elapsed if elapsed > 0 else 0
-                    pct = min(1.0, completed_pages / total_pages)
-                    remaining = max(0, total_count - current_count)
-                    eta = remaining / speed if speed > 0 else 0
+                        current_count = sum(len(v) for v in page_results.values())
+                        elapsed = time.time() - start_time
+                        speed = current_count / elapsed if elapsed > 0 else 0
+                        pct = min(1.0, completed_pages / total_pages)
+                        remaining = max(0, total_count - current_count)
+                        eta = remaining / speed if speed > 0 else 0
 
-                    if eta >= 60:
-                        eta_str = f"{int(eta // 60)} mnt {int(eta % 60)} dtk"
-                    else:
-                        eta_str = f"{int(eta)} dtk"
+                        if eta >= 60:
+                            eta_str = f"{int(eta // 60)} mnt {int(eta % 60)} dtk"
+                        else:
+                            eta_str = f"{int(eta)} dtk"
 
-                    progress_bar.progress(pct)
-                    status_box.markdown(
-                        f"**{label}**\n\n"
-                        f"📊 **Progress**: `{current_count:,}` dari `{total_count:,}` record (**{pct*100:.1f}%**)\n\n"
-                        f"⚡ **Kecepatan**: `{int(speed):,}` record/detik | ⏳ **Perkiraan Waktu Tersisa (ETA)**: `{eta_str}`"
-                    )
+                        progress_bar.progress(pct)
+                        status_box.markdown(
+                            f"**{label}**\n\n"
+                            f"📊 **Progress**: `{current_count:,}` dari `{total_count:,}` record (**{pct*100:.1f}%**)\n\n"
+                            f"⚡ **Kecepatan**: `{int(speed):,}` record/detik | ⏳ **Perkiraan Waktu Tersisa (ETA)**: `{eta_str}`"
+                        )
 
             for off in sorted(page_results.keys()):
                 all_records.extend(page_results[off])

@@ -137,7 +137,7 @@ df_classified = compute_performance_indices(df_summary, weights=active_weights)
 df_classified = classify_quadrant(df_classified)
 
 # ── Header & Port Selector ───────────────────────────────────
-st.title("🤖 Analytics Advisor (AI Policy & Risk Evaluator)")
+st.title("🤖 Analytics Advisor (Policy & Risk)")
 st.caption("Analisis Keputusan Kebijakan Operasional Pelabuhan Spesifik berbasis Multi-Criteria Decision Making (AHP) & Predictive Risk Engine.")
 
 port_col = "port" if "port" in df_classified.columns else ("port_code" if "port_code" in df_classified.columns else df_classified.columns[0])
