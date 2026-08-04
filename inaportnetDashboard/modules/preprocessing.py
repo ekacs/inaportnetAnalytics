@@ -35,6 +35,10 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.copy()
 
+    # ── 0. Standarisasi Nama Kolom (Aliasing) ───────────────────────
+    if "code" in df.columns and "port_code" not in df.columns:
+        df["port_code"] = df["code"]
+
     # ── 1. Parse datetime ──────────────────────────────────────────
     for col in ["submission", "response"]:
         if col in df.columns:

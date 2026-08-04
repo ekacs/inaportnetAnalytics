@@ -367,6 +367,10 @@ with tab_upload:
                         df_final = preprocess(df_upload)
                     else:
                         df_final = df_upload.copy()
+
+                    # Aliasing kolom penting jika belum ada
+                    if "code" in df_final.columns and "port_code" not in df_final.columns:
+                        df_final["port_code"] = df_final["code"]
                     
                     proc_progress.progress(70)
                     df_final, n_dups = deduplicate_dataframe(df_final)
