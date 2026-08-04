@@ -12,7 +12,7 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
-    deduplicate_dataframe
+    deduplicate_dataframe, clean_and_deduplicate_pkk_rpc
 )
 from modules.theme import render_theme_selector
 
@@ -406,6 +406,12 @@ with tab_upload:
                         if res["success"]:
                             st.success(f"💾 **{res['inserted']:,} record** berhasil tersimpan ke Supabase.")
                             st.toast(f"💾 {res['inserted']:,} record tersimpan ke Supabase.", icon="✅")
+                            
+                            # Jalankan auto-deduplikasi & pembersihan null di Supabase server-side
+                            with st.spinner("🧹 Mengoptimalkan database & menghapus duplikasi di Supabase..."):
+                                rpc_clean = clean_and_deduplicate_pkk_rpc()
+                                if rpc_clean["success"] and (rpc_clean["deleted_duplicates"] > 0 or rpc_clean["deleted_nulls"] > 0):
+                                    st.info(f"🧹 **Supabase Server-Side Clean:** {rpc_clean['deleted_duplicates']:,} record duplikat & {rpc_clean['deleted_nulls']:,} baris null dibersihkan secara otomatis.")
                         else:
                             st.error(f"❌ Gagal menyimpan ke Supabase: {res['error']}")
 

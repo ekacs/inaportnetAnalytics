@@ -104,15 +104,15 @@ def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callbac
                    "approval_minutes","year","quarter","month","date","day","hour","angkutan"]
     df_out = df_out[[c for c in schema_cols if c in df_out.columns]]
 
-    records = df_out.where(pd.notnull(df_out), None).to_dict(orient="records")
-    total_records = len(records)
+    total_records = len(df_out)
     total_inserted = 0
 
     try:
         if progress_callback:
             progress_callback(0, total_records)
         for i in range(0, total_records, batch_size):
-            chunk = records[i : i + batch_size]
+            chunk_df = df_out.iloc[i : i + batch_size]
+            chunk = chunk_df.where(pd.notnull(chunk_df), None).to_dict(orient="records")
             client.table("pkk_records").upsert(chunk, on_conflict="pkk_number").execute()
             total_inserted += len(chunk)
             if progress_callback:
@@ -257,9 +257,34 @@ def deduplicate_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     return df_clean, dup_count
 
 
+def clean_and_deduplicate_pkk_rpc() -> dict:
+    """
+    Memanggil Supabase Stored Procedure (clean_and_deduplicate_pkk) di server-side.
+    Menghapus baris kosong (null pkk_number) & duplikat secara instan di SQL level.
+    """
+    client = get_supabase_client()
+    if client is None:
+        return {"success": False, "deleted_nulls": 0, "deleted_duplicates": 0, "error": "Supabase tidak terkonfigurasi."}
+
+    try:
+        response = client.rpc("clean_and_deduplicate_pkk").execute()
+        res_data = response.data if hasattr(response, "data") else response
+        if isinstance(res_data, dict):
+            return {
+                "success": True,
+                "deleted_nulls": res_data.get("deleted_nulls", 0),
+                "deleted_duplicates": res_data.get("deleted_duplicates", 0),
+                "error": None
+            }
+        return {"success": True, "deleted_nulls": 0, "deleted_duplicates": 0, "error": None}
+    except Exception as e:
+        return {"success": False, "deleted_nulls": 0, "deleted_duplicates": 0, "error": str(e)}
+
+
 def check_and_clean_db_duplicates(progress_callback=None) -> dict:
     """
     Mendeteksi dan menghapus record duplikat di Supabase (pkk_records) berdasarkan pkk_number.
+    Mencoba RPC server-side lebih dahulu. Jika belum ada, gunakan fallback client-side.
     
     Parameters
     ----------
@@ -279,7 +304,31 @@ def check_and_clean_db_duplicates(progress_callback=None) -> dict:
 
     try:
         if progress_callback:
-            progress_callback("detect", "🔍 Mendeteksi data yang tersimpan di Supabase...", 20)
+            progress_callback("detect", "⚡ Memulai pembersihan cepat server-side (Supabase RPC)...", 30)
+
+        # Coba jalankan via RPC Server-Side terlebih dahulu
+        rpc_res = clean_and_deduplicate_pkk_rpc()
+        if rpc_res["success"]:
+            # Ambil total record tersisa
+            count_resp = client.table("pkk_records").select("id", count="exact").limit(1).execute()
+            clean_count = count_resp.count if hasattr(count_resp, "count") and count_resp.count is not None else 0
+            dups_removed = rpc_res["deleted_duplicates"] + rpc_res["deleted_nulls"]
+            total_checked = clean_count + dups_removed
+
+            if progress_callback:
+                progress_callback("complete", f"✅ Data bersih via Supabase RPC! Dihapus: {dups_removed:,} (Duplikat: {rpc_res['deleted_duplicates']:,}, Null: {rpc_res['deleted_nulls']:,}). Total bersih: {clean_count:,} record.", 100)
+
+            return {
+                "total_checked": total_checked,
+                "duplicates_found": dups_removed,
+                "duplicates_removed": dups_removed,
+                "clean_count": clean_count,
+                "success": True,
+                "error": None
+            }
+
+        if progress_callback:
+            progress_callback("detect", "🔍 Mendeteksi data yang tersimpan di Supabase (Fallback Client-Side)...", 20)
 
         # Ambil id dan pkk_number seluruh data dari Supabase
         all_rows = []

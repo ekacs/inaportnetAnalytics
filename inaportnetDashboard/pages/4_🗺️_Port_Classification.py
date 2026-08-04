@@ -54,7 +54,7 @@ with st.sidebar:
     weight_scheme = st.radio(
         "Pilih Model Pembobotan Indeks",
         options=[
-            "🏆 AHP Scientifically Weighted (Kemenhub)",
+            "🏆 AHP Scientifically Weighted (simulasi rekayasa pov auditor)",
             "⚖️ Equal Weighting (Klasik 25%)",
             "🎛️ Custom Weights (1% - 100%)",
         ],
