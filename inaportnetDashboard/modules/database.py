@@ -39,7 +39,7 @@ def is_connected() -> bool:
 # INSERT / UPSERT
 # ──────────────────────────────────────────────────────────────
 
-def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500) -> dict:
+def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callback=None) -> dict:
     """
     Menyimpan DataFrame PKK ke Supabase dengan upsert (hindari duplikat).
 
@@ -49,6 +49,8 @@ def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500) -> dict:
         DataFrame preprocessed dengan kolom yang sesuai skema.
     batch_size : int
         Jumlah record per batch insert.
+    progress_callback : callable, optional
+        Callback function(current, total) untuk memperbarui progress UI.
 
     Returns
     -------
@@ -103,16 +105,22 @@ def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500) -> dict:
     df_out = df_out[[c for c in schema_cols if c in df_out.columns]]
 
     records = df_out.where(pd.notnull(df_out), None).to_dict(orient="records")
+    total_records = len(records)
     total_inserted = 0
 
     try:
-        for i in range(0, len(records), batch_size):
+        if progress_callback:
+            progress_callback(0, total_records)
+        for i in range(0, total_records, batch_size):
             chunk = records[i : i + batch_size]
             client.table("pkk_records").upsert(chunk, on_conflict="pkk_number").execute()
             total_inserted += len(chunk)
+            if progress_callback:
+                progress_callback(total_inserted, total_records)
         return {"success": True, "inserted": total_inserted, "error": None}
     except Exception as e:
         return {"success": False, "inserted": total_inserted, "error": str(e)}
+
 
 
 # ──────────────────────────────────────────────────────────────

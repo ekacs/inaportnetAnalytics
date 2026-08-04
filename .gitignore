@@ -1,0 +1,54 @@
+# ==========================================
+# 1. Credentials & Secrets (Abaikan Kredensial)
+# ==========================================
+.streamlit/secrets.toml
+**/secrets.toml
+*.env
+.env*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+client_secret*.json
+
+# ==========================================
+# 2. Folder Workfiles & Data Sementara
+# ==========================================
+workfiles/
+workfiles/*
+
+# ==========================================
+# 3. Python & Virtual Environments
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# ==========================================
+# 4. System & IDE Files (Non-Source Code)
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# 5. Logs & Temp Files
+# ==========================================
+*.log
+*.tmp
+*.bak

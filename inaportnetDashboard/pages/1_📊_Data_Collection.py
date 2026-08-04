@@ -262,6 +262,7 @@ with tab_upload:
     st.markdown('<div class="section-header">📁 Upload Data dari File</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="info-box">Upload file CSV atau Excel hasil scraping sebelumnya. '
+        'Batas ukuran file hingga <b>500 MB</b>.<br>'
         'Kolom minimal: <code>submission</code> dan <code>response</code>, atau <code>approval_minutes</code>.</div>',
         unsafe_allow_html=True
     )
@@ -269,18 +270,53 @@ with tab_upload:
     uploaded_file = st.file_uploader(
         "Pilih file CSV atau Excel",
         type=["csv", "xlsx", "xls"],
-        help="Format yang didukung: .csv, .xlsx, .xls",
+        help="Format yang didukung: .csv, .xlsx, .xls (Maksimal 500 MB)",
     )
 
     if uploaded_file is not None:
+        file_size_mb = round(uploaded_file.size / (1024 * 1024), 2)
+        st.caption(f"📦 Ukuran file: **{file_size_mb} MB**")
+
         try:
-            with st.spinner("Membaca file..."):
+            parse_status = st.empty()
+            parse_progress = st.progress(0)
+
+            # Jika file CSV berukuran besar (>20MB), gunakan chunk reading dengan progress bar
+            if uploaded_file.name.endswith(".csv") and uploaded_file.size > 20 * 1024 * 1024:
+                chunks = []
+                chunk_size = 100_000
+                total_bytes = uploaded_file.size
+
+                # Estimasi sederhana: ~10-15 MB per detik
+                est_seconds = max(1, round(file_size_mb / 12, 1))
+                parse_status.info(f"⏳ Membaca file CSV besar ({file_size_mb} MB)... Estimasi waktu: ~{est_seconds} detik")
+
+                chunk_iter = pd.read_csv(uploaded_file, chunksize=chunk_size)
+                processed_bytes = 0
+
+                for i, chunk in enumerate(chunk_iter):
+                    chunks.append(chunk)
+                    # Estimasi progress berbasis jumlah chunk yang telah dibaca
+                    processed_bytes += chunk.memory_usage(deep=True).sum()
+                    pct = min(95, int((i + 1) * chunk_size * 120 / (uploaded_file.size + 1)))
+                    parse_progress.progress(pct)
+                    parse_status.info(f"⏳ Membaca data: chunk {i+1} ({len(chunk):,} baris diproses)...")
+
+                parse_progress.progress(100)
+                df_upload = pd.concat(chunks, ignore_index=True)
+            else:
+                parse_status.info("⏳ Membaca file...")
+                parse_progress.progress(50)
                 if uploaded_file.name.endswith(".csv"):
                     df_upload = pd.read_csv(uploaded_file)
                 else:
                     df_upload = pd.read_excel(uploaded_file)
+                parse_progress.progress(100)
 
-            st.success(f"✅ File dibaca: **{len(df_upload):,} baris × {len(df_upload.columns)} kolom**")
+            parse_status.empty()
+            parse_progress.empty()
+
+            st.success(f"✅ File berhasil dibaca: **{len(df_upload):,} baris × {len(df_upload.columns)} kolom** ({file_size_mb} MB)")
 
             # Preview
             with st.expander("🔍 Preview Data (10 baris pertama)", expanded=True):
@@ -299,28 +335,65 @@ with tab_upload:
                     st.markdown("")
 
                 if st.button("✅ Gunakan Data Ini", type="primary", key="btn_use_upload"):
-                    with st.spinner("Memproses & mendeteksi duplikasi..."):
-                        if validation["is_raw"]:
-                            df_final = preprocess(df_upload)
-                        else:
-                            df_final = df_upload.copy()
-                        df_final, n_dups = deduplicate_dataframe(df_final)
+                    # Step 1: Preprocessing & Deduplication Progress
+                    proc_status = st.empty()
+                    proc_progress = st.progress(0)
+
+                    proc_status.info("🧹 Memproses data & mendeteksi duplikasi...")
+                    proc_progress.progress(30)
+
+                    if validation["is_raw"]:
+                        df_final = preprocess(df_upload)
+                    else:
+                        df_final = df_upload.copy()
+                    
+                    proc_progress.progress(70)
+                    df_final, n_dups = deduplicate_dataframe(df_final)
+                    proc_progress.progress(100)
+
+                    proc_status.empty()
+                    proc_progress.empty()
 
                     st.session_state["df"] = df_final
                     if n_dups > 0:
                         st.info(f"🧹 **{n_dups:,} record duplikat** dibersihkan dari file.")
                     st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
+                    # Step 2: Supabase Storage Progress
                     if save_upload_db and db_ok:
-                        with st.spinner("Menyimpan ke Supabase..."):
-                            res = insert_pkk_records(df_final)
-                        if res["success"]:
-                            st.success(f"💾 **{res['inserted']:,} record** tersimpan ke Supabase.")
-                        else:
-                            st.error(f"❌ Gagal: {res['error']}")
+                        db_status = st.empty()
+                        db_progress = st.progress(0)
+                        
+                        tot_recs = len(df_final)
+                        # Estimasi simpan: ~500 record per 0.3 detik
+                        est_db_sec = round(tot_recs / 1500, 1)
 
+                        def db_progress_cb(cur, tot):
+                            pct = int(cur / tot * 100) if tot > 0 else 0
+                            db_progress.progress(pct)
+                            db_status.info(
+                                f"💾 **Menyimpan ke Supabase:** {cur:,} / {tot:,} record ({pct}%) "
+                                f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 1500, 1))} detik"
+                            )
+
+                        res = insert_pkk_records(df_final, batch_size=1000, progress_callback=db_progress_cb)
+                        
+                        db_status.empty()
+                        db_progress.empty()
+
+                        if res["success"]:
+                            st.success(f"💾 **{res['inserted']:,} record** berhasil tersimpan ke Supabase.")
+                            st.toast(f"💾 {res['inserted']:,} record tersimpan ke Supabase.", icon="✅")
+                        else:
+                            st.error(f"❌ Gagal menyimpan ke Supabase: {res['error']}")
+
+        except MemoryError:
+            st.error(
+                "❌ **Kehabisan Memori (MemoryError):** File terlalu besar untuk dibaca sekaligus ke RAM. "
+                "Disarankan untuk membagi file menjadi beberapa bagian lebih kecil atau menggunakan format `.csv`."
+            )
         except Exception as e:
-            st.error(f"❌ Gagal membaca file: {e}")
+            st.error(f"❌ **Gagal membaca file:** {e}")
 
 # ────────────────────────────────────────────────────────────────
 # TAB 3 — LOAD DARI SUPABASE
