@@ -389,13 +389,39 @@ def get_available_ports_from_db() -> List[str]:
     if client is None:
         return []
     try:
-        response = (
-            client.table("pkk_records")
-            .select("port_code")
-            .execute()
-        )
-        codes = list({r["port_code"] for r in response.data if r.get("port_code")})
-        return sorted(codes)
+        # 1. Coba query via view ringkasan pelabuhan (jika ada di Supabase)
+        try:
+            res_view = client.table("port_summary_view").select("port_code").execute()
+            if res_view.data:
+                codes = list({r["port_code"] for r in res_view.data if r.get("port_code")})
+                if codes:
+                    return sorted(codes)
+        except Exception:
+            pass
+
+        # 2. Jika data sudah dimuat ke session state
+        if "df" in st.session_state and not st.session_state["df"].empty and "port_code" in st.session_state["df"].columns:
+            codes = list(st.session_state["df"]["port_code"].dropna().unique())
+            if codes:
+                return sorted(codes)
+
+        # 3. Pagination query untuk scan port_code dari database Supabase
+        all_codes = set()
+        for offset in range(0, 100000, 2500):
+            response = (
+                client.table("pkk_records")
+                .select("port_code")
+                .range(offset, offset + 2499)
+                .execute()
+            )
+            if not response.data:
+                break
+            batch_codes = {r["port_code"] for r in response.data if r.get("port_code")}
+            all_codes.update(batch_codes)
+            if len(response.data) < 2500:
+                break
+        return sorted(list(all_codes))
+
     except Exception:
         return []
 
