@@ -4,6 +4,7 @@ Koneksi dan operasi CRUD ke Supabase untuk data PKK Inaportnet.
 """
 
 import pandas as pd
+import numpy as np
 import streamlit as st
 from typing import Optional, List
 
@@ -145,16 +146,22 @@ def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callbac
         df_out["quarter"] = df_out["quarter"].astype(str)
     for col in ["approval_hours", "approval_minutes"]:
         if col in df_out.columns:
-            df_out[col] = df_out[col].astype(float).round(4)
+            df_out[col] = pd.to_numeric(df_out[col], errors="coerce").round(4)
     for col in ["year", "month", "hour"]:
         if col in df_out.columns:
-            df_out[col] = df_out[col].astype("Int64").astype(object)
+            df_out[col] = pd.to_numeric(df_out[col], errors="coerce")
 
     # Pilih kolom yang tersedia di skema
     schema_cols = ["pkk_number","vessel_name","port_code","port","service",
                    "submission","response","simpadu","gmt","approval_hours",
                    "approval_minutes","year","quarter","month","date","day","hour","angkutan"]
     df_out = df_out[[c for c in schema_cols if c in df_out.columns]]
+
+    # Ganti Inf / -Inf dengan NaN, lalu konversi SELURUH kolom ke object dtype
+    # agar nilai None tidak ter-cast kembali menjadi float np.nan oleh pandas
+    df_out = df_out.replace([np.inf, -np.inf], np.nan)
+    df_out = df_out.astype(object)
+    df_out = df_out.where(pd.notnull(df_out), None)
 
     total_records = len(df_out)
     total_inserted = 0
@@ -164,7 +171,7 @@ def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callbac
             progress_callback(0, total_records)
         for i in range(0, total_records, batch_size):
             chunk_df = df_out.iloc[i : i + batch_size]
-            chunk = chunk_df.where(pd.notnull(chunk_df), None).to_dict(orient="records")
+            chunk = chunk_df.to_dict(orient="records")
             client.table("pkk_records").upsert(chunk, on_conflict="pkk_number").execute()
             total_inserted += len(chunk)
             if progress_callback:
