@@ -454,3 +454,151 @@ def generate_ai_policy_insights(
         "sensitivity_analysis": p3,
         "policy_implications": p4,
     }
+
+
+def generate_port_specific_ai_insight(
+    df_classified: pd.DataFrame,
+    selected_port_name: str,
+    weights: Optional[dict] = None,
+    ahp_metrics: Optional[dict] = None
+) -> dict:
+    """
+    Menghasilkan 5 poin evaluasi AI terintegrasi untuk pelabuhan spesifik yang dipilih pengguna.
+    
+    Points returned:
+    1. priority_weights_analysis: Hasil Perhitungan Bobot Prioritas AHP
+    2. consistency_test_summary: Simpulan Perbandingan Uji Konsistensi Rasio (CR) & Consistency Index (CI)
+    3. policy_implications: Implikasi Kebijakan Operasional Spesifik
+    4. future_risk_assessment: Pernyataan Risiko Masa Depan
+    5. rankings_table: Data Peringkat Pelabuhan Lengkap (Urut #1 Terbaik s.d. Terburuk)
+    """
+    if df_classified.empty:
+        return {}
+
+    df_rank = df_classified.copy()
+    if "composite_index" in df_rank.columns:
+        df_rank = df_rank.sort_values("composite_index", ascending=False).reset_index(drop=True)
+    df_rank["rank"] = range(1, len(df_rank) + 1)
+
+    port_col = "port" if "port" in df_rank.columns else ("port_code" if "port_code" in df_rank.columns else df_rank.columns[0])
+    total_ports = len(df_rank)
+
+    # Filter pelabuhan yang dipilih
+    port_row = df_rank[df_rank[port_col] == selected_port_name]
+    if port_row.empty:
+        port_row = df_rank.head(1)
+        selected_port_name = str(port_row[port_col].iloc[0])
+
+    p_data = port_row.iloc[0]
+    rank_num = int(p_data["rank"])
+    comp_score = float(p_data.get("composite_index", 0.0))
+    quadrant = str(p_data.get("quadrant", "Unknown"))
+    vol = int(p_data.get("volume", 0))
+    sla_rate = round(float(p_data.get("sla_compliance", 0.0) * 100), 2)
+    mean_time = round(float(p_data.get("mean_response_time", 0.0)), 2)
+    ext_delay = int(p_data.get("extreme_delay", 0))
+
+    if weights is None:
+        weights = AHP_DEFAULT_WEIGHTS
+    if ahp_metrics is None:
+        ahp_metrics = calculate_ahp_matrix_consistency()
+
+    w_ci = round(weights.get("ci", 0.4709) * 100, 2)
+    w_ri = round(weights.get("ri", 0.2840) * 100, 2)
+    w_ei = round(weights.get("ei", 0.1715) * 100, 2)
+    w_csi = round(weights.get("csi", 0.0736) * 100, 2)
+
+    ci_val = ahp_metrics.get("ci", 0.0170)
+    cr_val = ahp_metrics.get("cr", 0.0402)
+    lambda_max = ahp_metrics.get("lambda_max", 4.0511)
+    is_consistent = ahp_metrics.get("is_consistent", True)
+
+    # 1. Hasil Perhitungan Bobot Prioritas AHP
+    score_ci = round(float(p_data.get("compliance_index", 0.0)) * 100, 1)
+    score_ri = round(float(p_data.get("robustness_index", 0.0)) * 100, 1)
+    score_ei = round(float(p_data.get("efficiency_index", 0.0)) * 100, 1)
+    score_csi = round(float(p_data.get("consistency_index", 0.0)) * 100, 1)
+
+    p1 = (
+        f"Model AHP Saaty memberikan bobot prioritas tertinggi pada **SLA Compliance Index (CI = {w_ci}%)** "
+        f"dan **Robustness Index (RI = {w_ri}%)**, diikuti **Efficiency Index (EI = {w_ei}%)** serta **Consistency Index (CsI = {w_csi}%)**.\n\n"
+        f"📍 **Evaluasi Kriteria Pelabuhan {selected_port_name}**:\n"
+        f"• **Skor Kepatuhan SLA (CI)**: {score_ci}/100 (Tingkat Kepatuhan SLA <30 mnt: {sla_rate}%).\n"
+        f"• **Skor Ketahanan Keterlambatan (RI)**: {score_ri}/100 (Jumlah *Extreme Delay* >2 jam: {ext_delay} PKK).\n"
+        f"• **Skor Efisiensi Durasi (EI)**: {score_ei}/100 (Rata-rata Waktu Approval: {mean_time} menit).\n"
+        f"• **Skor Stabilitas Variabilitas (CsI)**: {score_csi}/100."
+    )
+
+    # 2. Simpulan Uji Konsistensi Rasio (CR) dan Konsistensi Indeks (CI)
+    status_cr_txt = "SANGAT KONSISTEN dan VALID SECARA MATEMATIS" if is_consistent else "TIDAK KONSISTEN (>10%)"
+    p2 = (
+        f"Berdasarkan pengujian matriks perbandingan berpasangan Saaty 4×4:\n\n"
+        f"• **Eigenvalue Maksimum ($\\lambda_{{max}}$)**: {lambda_max:.4f}\n"
+        f"• **Consistency Index (CI)**: {ci_val:.4f}\n"
+        f"• **Random Index (RI, n=4)**: 0.9000\n"
+        f"• **Consistency Ratio (CR)**: **{cr_val:.4f}** ({cr_val*100:.2f}%)\n\n"
+        f"📌 **Kesimpulan Saintifik**: Karena nilai $CR = {cr_val:.4f} \\le 0.10$ ({cr_val*100:.2f}% $\\le 10\\%$), "
+        f"maka seluruh struktur bobot kriteria AHP terbukti **{status_cr_txt}**."
+    )
+
+    # 3. Implikasi Kebijakan Operasional
+    if quadrant == "Benchmark Port":
+        p3 = (
+            f"Pelabuhan **{selected_port_name}** berada pada kuadran **Benchmark Port** (Peringkat #{rank_num} dari {total_ports}).\n\n"
+            f"💡 **Rekomendasi Kebijakan**:\n"
+            f"1. Jadikan pelabuhan ini sebagai *Center of Excellence* dan percontohan nasional digitalisasi Inaportnet.\n"
+            f"2. Berikan insentif regulasi dan prioritas alokasi anggaran otomatisasi infrastruktur IT pelabuhan.\n"
+            f"3. Pertahankan standar SLA Compliance di atas 90% dengan skema *green-channel approval*."
+        )
+    elif quadrant == "Efficient Port":
+        p3 = (
+            f"Pelabuhan **{selected_port_name}** berada pada kuadran **Efficient Port** (Peringkat #{rank_num} dari {total_ports}).\n\n"
+            f"💡 **Rekomendasi Kebijakan**:\n"
+            f"1. Efisiensi waktu persetujuan sangat baik ({mean_time} menit), namun volume lalu lintas kapal masih sedang/rendah ({vol:,} PKK).\n"
+            f"2. Dorong promosi konektivitas jaringan pelayaran dan integrasi kawasan industri (*hinterland*) untuk meningkatkan *throughput* kapal.\n"
+            f"3. Pertahankan tim operasional tetap siaga saat lonjakan musiman."
+        )
+    elif quadrant == "Congested Port":
+        p3 = (
+            f"Pelabuhan **{selected_port_name}** berada pada kuadran **Congested Port** (Peringkat #{rank_num} dari {total_ports}).\n\n"
+            f"💡 **Rekomendasi Kebijakan Intervensi Darurat**:\n"
+            f"1. **Beban Tinggi & Restriksi SLA**: Volume tinggi ({vol:,} PKK) dengan SLA Compliance {sla_rate}% memicu antrean persetujuan.\n"
+            f"2. Lakukan *Business Process Re-engineering* (BPR) dan otomatisasi verifikasi dokumen persetujuan PKK.\n"
+            f"3. Tambahkan petugas verifikator Inaportnet pada jam-jam sibuk (*peak hours*) untuk mengurai *bottleneck*."
+        )
+    else: # Developing Port
+        p3 = (
+            f"Pelabuhan **{selected_port_name}** berada pada kuadran **Developing Port** (Peringkat #{rank_num} dari {total_ports}).\n\n"
+            f"💡 **Rekomendasi Kebijakan Rehabilitasi**:\n"
+            f"1. Lakukan audit sistemik pada durasi persetujuan (rata-rata {mean_time} menit) dan tingkat kepatuhan SLA ({sla_rate}%).\n"
+            f"2. Berikan pelatihan verifikasi digital Inaportnet dan perbarui perangkat keras jaringan pelabuhan.\n"
+            f"3. Tetapkan target perbaikan SLA secara bertahap menuju kurva efisiensi nasional."
+        )
+
+    # 4. Pernyataan Risiko Masa Depan (Future Risk Assessment)
+    risk_level = "RENDAH" if rank_num <= total_ports * 0.25 else ("SEDANG" if rank_num <= total_ports * 0.75 else "TINGGI")
+    p4 = (
+        f"⚠️ **Pernyataan Risiko & Proyeksi Dampak (Tingkat Risiko: {risk_level})**:\n\n"
+        f"1. **Risiko Biaya Demurrage Pelayaran**: Jika keterlambatan ekstrem (>2 jam = {ext_delay} kasus) tidak ditekan, pemilik barang & agen pelayaran menghadapi kenaikan biaya pembatalan jadwal dan demurrage kapal.\n"
+        f"2. **Risiko Bottleneck Logistik Nasional**: Keterlambatan verifikasi PKK di {selected_port_name} berisiko memicu efek domino penumpukan kapal di alur pelayaran.\n"
+        f"3. **Risiko Degradasi Reputasi Kemenhub**: Kegagalan mempertahankan kepatuhan SLA PM 8/2022 berpotensi menurunkan Indeks Logistik Nasional (LPI) Indonesia."
+    )
+
+    # 5. Tabel Peringkat Kinerja Pelabuhan (Terbaik s.d. Terburuk)
+    rank_cols = [port_col, "volume", "composite_index", "quadrant", "sla_compliance", "mean_response_time"]
+    df_ranking_out = df_rank[[c for c in ["rank"] + rank_cols if c in df_rank.columns]].copy()
+    if "sla_compliance" in df_ranking_out.columns:
+        df_ranking_out["sla_compliance_pct"] = round(df_ranking_out["sla_compliance"] * 100, 1)
+
+    return {
+        "selected_port": selected_port_name,
+        "rank_num": rank_num,
+        "total_ports": total_ports,
+        "composite_score": round(comp_score, 4),
+        "quadrant": quadrant,
+        "priority_weights_analysis": p1,
+        "consistency_test_summary": p2,
+        "policy_implications": p3,
+        "future_risk_assessment": p4,
+        "rankings_table": df_ranking_out,
+    }

@@ -11,7 +11,7 @@ import os
 from modules.analysis import (
     compute_port_summary, compute_performance_indices, classify_quadrant,
     AHP_DEFAULT_WEIGHTS, EQUAL_WEIGHTS, calculate_ahp_matrix_consistency,
-    generate_ai_policy_insights
+    generate_ai_policy_insights, generate_port_specific_ai_insight
 )
 from modules.visualization import plot_quadrant_scatter, plot_performance_ranking
 from modules.database import is_connected
@@ -357,6 +357,92 @@ with tab_ai4:
     st.markdown("### 💡 Implikasi & Rekomendasi Kebijakan (Kemenhub / Pelindo)")
     st.markdown(ai_insights["policy_implications"])
     st.markdown('</div>', unsafe_allow_html=True)
+
+# ──────────────────────────────────────────────────────────────
+# 🤖 AI POLICY & RISK ADVISOR (EVALUASI PELABUHAN SPESIFIK)
+# ──────────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🤖 AI Policy & Risk Advisor (Evaluasi Pelabuhan Spesifik)</div>', unsafe_allow_html=True)
+
+port_col_name = "port" if "port" in df_classified.columns else ("port_code" if "port_code" in df_classified.columns else df_classified.columns[0])
+available_ports_list = sorted(df_classified[port_col_name].dropna().unique().tolist())
+
+col_ai_sel1, col_ai_sel2 = st.columns([2, 1])
+with col_ai_sel1:
+    selected_ai_port = st.selectbox(
+        "🏗️ Pilih Pelabuhan Spesifik untuk Evaluasi AI & Proyeksi Risiko:",
+        options=available_ports_list,
+        index=0 if available_ports_list else None,
+        key="sb_ai_port_eval"
+    )
+
+port_ai = generate_port_specific_ai_insight(
+    df_classified=df_classified,
+    selected_port_name=selected_ai_port,
+    weights=active_weights,
+    ahp_metrics=ahp_metrics
+)
+
+if port_ai:
+    # Banner Peringkat & Skor Pelabuhan Terpilih
+    st.info(
+        f"🏆 **Posisi Kinerja Pelabuhan {port_ai['selected_port']}**: "
+        f"Peringkat **#{port_ai['rank_num']}** dari **{port_ai['total_ports']}** Pelabuhan "
+        f"| Skor Komposit AHP: **{port_ai['composite_score']:.4f}** | Kuadran: **{port_ai['quadrant']}**"
+    )
+
+    tab_eval1, tab_eval2, tab_eval3, tab_eval4, tab_eval5 = st.tabs([
+        "📊 1. Bobot Prioritas AHP",
+        "⚖️ 2. Uji Konsistensi (CR vs CI)",
+        "💡 3. Implikasi Kebijakan",
+        "⚠️ 4. Pernyataan Risiko Masa Depan",
+        "🏆 5. Peringkat Pelabuhan Lengkap"
+    ])
+
+    with tab_eval1:
+        st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+        st.markdown("### 📊 1. Hasil Perhitungan Bobot Prioritas AHP & Evaluasi Kriteria")
+        st.markdown(port_ai["priority_weights_analysis"])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab_eval2:
+        st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+        st.markdown("### ⚖️ 2. Simpulan Perbandingan Hasil Uji Konsistensi Rasio (CR) & Consistency Index (CI)")
+        st.markdown(port_ai["consistency_test_summary"])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab_eval3:
+        st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+        st.markdown("### 💡 3. Implikasi Kebijakan Operasional Spesifik")
+        st.markdown(port_ai["policy_implications"])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab_eval4:
+        st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+        st.markdown("### ⚠️ 4. Pernyataan Risiko & Proyeksi Dampak Masa Depan")
+        st.markdown(port_ai["future_risk_assessment"])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab_eval5:
+        st.markdown("### 🏆 5. Angka Peringkat Pelabuhan Berdasarkan Kinerja (Terbaik s.d. Terburuk)")
+        st.caption(f"Tabel peringkat lengkap {port_ai['total_ports']} pelabuhan. Posisi Pelabuhan **{port_ai['selected_port']}** berada di Peringkat **#{port_ai['rank_num']}**.")
+
+        df_rank_display = port_ai["rankings_table"].copy()
+
+        st.dataframe(
+            df_rank_display,
+            width="stretch",
+            height=400,
+            column_config={
+                "rank": st.column_config.NumberColumn("Peringkat", format="#%d"),
+                "port": st.column_config.TextColumn("Pelabuhan"),
+                "port_code": st.column_config.TextColumn("Kode"),
+                "volume": st.column_config.NumberColumn("Volume PKK", format="%d"),
+                "composite_index": st.column_config.NumberColumn("Skor Komposit AHP", format="%.4f"),
+                "quadrant": st.column_config.TextColumn("Kuadran"),
+                "sla_compliance_pct": st.column_config.NumberColumn("Kepatuhan SLA (%)", format="%.1f%%"),
+                "mean_response_time": st.column_config.NumberColumn("Approval (mnt)", format="%.2f"),
+            }
+        )
 
 # ── Tabel Lengkap ─────────────────────────────────────────────
 with st.expander("📋 Tabel Lengkap Semua Pelabuhan"):
