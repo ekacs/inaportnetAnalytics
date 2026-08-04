@@ -43,19 +43,38 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 .stat-pill {
     display:inline-block;
-    background:#dbeafe;
-    color:#1e40af;
-    border-radius:20px;
-    padding:2px 12px;
-    font-size:0.82rem;
-    font-weight:600;
-    margin:2px;
+    padding: 2px 10px;
+    background: #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 4px;
 }
 footer{visibility:hidden;} #MainMenu{visibility:hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar ───────────────────────────────────────────────────
+
+def show_db_import_error_info(res: dict):
+    """Tampilkan detail error dan solusi interaktif jika proses simpan Supabase gagal."""
+    err_str = str(res.get("error", "Terjadi kesalahan tidak diketahui."))
+    if res.get("is_quota_full", False):
+        render_quota_full_dialog()
+        return
+
+    st.error(f"❌ **Gagal menyimpan data ke Supabase:** {err_str}")
+    st.toast(f"❌ Gagal simpan DB: {err_str}", icon="❌")
+
+    if "42501" in err_str or "row-level security" in err_str.lower():
+        st.warning(
+            "💡 **Penyebab & Solusi Error RLS (Row Level Security):**\n\n"
+            "- **Penyebab:** Kunci API Supabase saat ini (`anon_key`) dibatasi oleh aturan keamanan RLS.\n"
+            "- **Solusi A (Rekomendasi):** Gunakan kunci `service_role` pada file `.streamlit/secrets.toml` (`SUPABASE_KEY = \"service_role_key\"`).\n"
+            "- **Solusi B:** Jalankan query `CREATE POLICY \"Allow public access\" ON pkk_records FOR ALL TO public USING (true) WITH CHECK (true);` di **Supabase SQL Editor**."
+        )
+    elif "connection" in err_str.lower() or "timeout" in err_str.lower():
+        st.info("💡 **Solusi Koneksi:** Periksa kestabilan jaringan internet ke server Supabase Cloud.")
+
 # ── Sidebar ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 🚢 Inaportnet Analytics")
@@ -166,8 +185,6 @@ with tab_scrape:
 
     st.markdown('<div class="section-header">▶ Jalankan Scraping</div>', unsafe_allow_html=True)
 
-    save_to_db = st.checkbox("💾 Simpan otomatis ke Supabase setelah scraping selesai", value=db_ok)
-
     btn_scrape = st.button(
         "🚀 Mulai Scraping",
         type="primary",
@@ -248,17 +265,16 @@ with tab_scrape:
                 st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
                 result_area.dataframe(df_processed.head(10), width="stretch")
 
-                # Simpan ke Supabase
-                if save_to_db and db_ok:
+                # Simpan otomatis ke Supabase
+                if db_ok:
                     with st.spinner("Menyimpan ke Supabase..."):
                         res = insert_pkk_records(df_processed)
                     if res["success"]:
                         st.success(f"💾 **{res['inserted']:,} record** tersimpan ke Supabase.")
                         st.toast(f"💾 {res['inserted']:,} record tersimpan ke Supabase.", icon="✅")
                     else:
-                        st.error(f"❌ Gagal menyimpan ke Supabase: {res['error']}")
-                        st.toast(f"❌ Gagal simpan DB: {res['error']}", icon="❌")
-                elif save_to_db and not db_ok:
+                        show_db_import_error_info(res)
+                else:
                     st.warning("⚠️ Supabase tidak terhubung. Data hanya tersimpan di sesi ini.")
 
 # ────────────────────────────────────────────────────────────────
@@ -355,11 +371,6 @@ with tab_upload:
                 st.error(validation["message"])
             else:
                 st.info(validation["message"])
-                col_u1, col_u2 = st.columns(2)
-                with col_u1:
-                    save_upload_db = st.checkbox("💾 Simpan ke Supabase", value=db_ok, key="save_upload")
-                with col_u2:
-                    st.markdown("")
 
                 if st.button("✅ Gunakan Data Ini", type="primary", key="btn_use_upload"):
                     # Step 1: Preprocessing & Deduplication Progress
@@ -391,7 +402,7 @@ with tab_upload:
                     st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
                     # Step 2: Supabase Storage Progress (Batch size 2,500 untuk kecepatan transfer)
-                    if save_upload_db and db_ok:
+                    if db_ok:
                         db_status = st.empty()
                         db_progress = st.progress(0)
                         
@@ -419,7 +430,9 @@ with tab_upload:
                                 if rpc_clean["success"] and (rpc_clean["deleted_duplicates"] > 0 or rpc_clean["deleted_nulls"] > 0):
                                     st.info(f"🧹 **Supabase Server-Side Clean:** {rpc_clean['deleted_duplicates']:,} record duplikat & {rpc_clean['deleted_nulls']:,} baris null dibersihkan secara otomatis.")
                         else:
-                            st.error(f"❌ Gagal menyimpan ke Supabase: {res['error']}")
+                            show_db_import_error_info(res)
+                    else:
+                        st.warning("⚠️ Supabase tidak terhubung. Data hanya tersimpan di sesi ini.")
 
         except MemoryError:
             st.error(
