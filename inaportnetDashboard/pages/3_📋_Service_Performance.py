@@ -23,11 +23,12 @@ from modules.visualization import (
     plot_top_longest_approval, plot_sla_compliance_bar,
     plot_sla_trend,
 )
-from modules.database import is_connected
+from modules.database import is_connected, render_sidebar_sync_widget
 from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Service Performance · Inaportnet", page_icon="📋", layout="wide")
 render_theme_selector()
+render_sidebar_sync_widget()
 
 st.markdown("""
 <style>

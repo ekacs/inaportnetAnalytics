@@ -20,12 +20,14 @@ from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
     deduplicate_dataframe, clean_and_deduplicate_pkk_rpc,
-    get_database_stats, render_quota_full_dialog
+    get_database_stats, render_quota_full_dialog,
+    render_sidebar_sync_widget
 )
 from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Data Collection · Inaportnet", page_icon="📊", layout="wide")
 render_theme_selector()
+render_sidebar_sync_widget()
 
 # ── CSS ───────────────────────────────────────────────────────
 st.markdown("""
@@ -134,9 +136,10 @@ port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} 
 # ════════════════════════════════════════════════════════════════
 # TAB LAYOUT
 # ════════════════════════════════════════════════════════════════
-tab_scrape, tab_upload = st.tabs([
+tab_scrape, tab_upload, tab_supabase = st.tabs([
     "🌐 Scraping",
     "📁 Upload File",
+    "☁️ Load dari Supabase",
 ])
 
 # ────────────────────────────────────────────────────────────────
@@ -449,3 +452,43 @@ with tab_upload:
             )
         except Exception as e:
             st.error(f"❌ **Gagal membaca file:** {e}")
+
+# ════════════════════════════════════════════════════════════════
+# TAB 3 — LOAD DARI SUPABASE
+# ════════════════════════════════════════════════════════════════
+with tab_supabase:
+    st.markdown('<div class="section-header">☁️ Sinkronisasi & Load Data dari Supabase</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="info-box">'
+        'Muat seluruh data PKK yang telah tersimpan di database Supabase ke dalam sesi analisis aktif secara cepat '
+        'dilengkapi visualisasi progress bar real-time dan perkiraan waktu selesai (ETA).'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    if db_ok:
+        stats = get_database_stats()
+        col_sb1, col_sb2, col_sb3 = st.columns(3)
+        col_sb1.metric("📊 Total Record Supabase", f"{stats.get('total_records', 0):,}")
+        col_sb2.metric("🏗️ Pelabuhan Terdaftar", f"{stats.get('unique_ports', 0):,}")
+        col_sb3.metric("⚡ Status Koneksi", "Terhubung" if stats.get("connected") else "Terputus")
+
+        st.markdown("---")
+        col_btn1, col_btn2 = st.columns([2, 1])
+        with col_btn1:
+            if st.button("🔄 Sinkronkan & Muat Seluruh Data dari Supabase", type="primary", width="stretch", key="btn_sync_tab_supabase"):
+                from modules.database import fetch_pkk_records_with_progress
+                df_loaded = fetch_pkk_records_with_progress(page_size=5000, label="🔄 Memuat seluruh data dari Supabase...")
+                if not df_loaded.empty:
+                    st.session_state["df"] = df_loaded
+                    st.toast(f"✅ Berhasil memuat {len(df_loaded):,} record ke sesi analisis!", icon="🎉")
+                    st.rerun()
+                else:
+                    st.error("❌ Supabase masih kosong atau gagal mengambil data.")
+        with col_btn2:
+            if "df" in st.session_state and not st.session_state["df"].empty:
+                st.success(f"✅ Sesi Aktif: **{len(st.session_state['df']):,} record**")
+            else:
+                st.warning("⚠️ Sesi Aktif: Belum ada data")
+    else:
+        st.error("❌ Supabase tidak terhubung. Periksa konfigurasi SUPABASE_URL dan SUPABASE_KEY di file `.env` atau `secrets.toml`.")

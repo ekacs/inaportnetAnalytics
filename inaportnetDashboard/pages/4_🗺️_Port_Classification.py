@@ -22,11 +22,12 @@ from modules.analysis import (
     generate_ai_policy_insights, generate_port_specific_ai_insight
 )
 from modules.visualization import plot_quadrant_scatter, plot_performance_ranking
-from modules.database import is_connected
+from modules.database import is_connected, render_sidebar_sync_widget
 from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Port Classification · Inaportnet", page_icon="🗺️", layout="wide")
 render_theme_selector()
+render_sidebar_sync_widget()
 
 st.markdown("""
 <style>

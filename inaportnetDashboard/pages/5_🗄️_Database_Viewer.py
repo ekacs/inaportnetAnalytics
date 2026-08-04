@@ -17,7 +17,8 @@ import pandas as pd
 import io
 from modules.database import (
     is_connected, get_database_stats, fetch_pkk_records_paginated,
-    fetch_pkk_records, generate_sql_dump, check_and_clean_db_duplicates
+    fetch_pkk_records, generate_sql_dump, check_and_clean_db_duplicates,
+    render_sidebar_sync_widget
 )
 from modules.scraper import load_port_reference
 from modules.theme import render_theme_selector
@@ -29,6 +30,7 @@ st.set_page_config(
 )
 
 render_theme_selector()
+render_sidebar_sync_widget()
 
 # ── CSS ───────────────────────────────────────────────────────
 st.markdown("""

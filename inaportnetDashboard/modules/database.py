@@ -754,3 +754,25 @@ def generate_sql_dump(df: pd.DataFrame, table_name: str = "pkk_records") -> str:
 
     return "\n".join(lines)
 
+
+def render_sidebar_sync_widget():
+    """
+    Menampilkan widget sinkronisasi data Supabase di sidebar (dapat dipanggil dari halaman manapun).
+    """
+    if is_connected():
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 🔄 Sinkronisasi Supabase")
+        if "df" in st.session_state and not st.session_state["df"].empty:
+            st.sidebar.caption(f"Sesi Aktif: **{len(st.session_state['df']):,} record**")
+        else:
+            st.sidebar.caption("Sesi Aktif: Belum ada data")
+
+        if st.sidebar.button("🔄 Auto-Load / Sinkronkan Data", type="primary", use_container_width=True, key="btn_sidebar_sync_global"):
+            df_loaded = fetch_pkk_records_with_progress(page_size=5000, label="🔄 Memuat data Supabase ke sesi...")
+            if not df_loaded.empty:
+                st.session_state["df"] = df_loaded
+                st.sidebar.success(f"✅ Dimuat: {len(df_loaded):,} record!")
+                st.rerun()
+            else:
+                st.sidebar.error("❌ Supabase masih kosong.")
+
