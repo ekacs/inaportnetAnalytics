@@ -396,8 +396,16 @@ with col_ex1:
 
 with col_ex2:
     excel_buf = io.BytesIO()
+    df_excel = df_export.copy()
+    for col in df_excel.columns:
+        if pd.api.types.is_datetime64_any_dtype(df_excel[col]):
+            try:
+                df_excel[col] = df_excel[col].dt.tz_localize(None)
+            except Exception:
+                df_excel[col] = df_excel[col].astype(str)
+
     with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-        df_export.to_excel(writer, sheet_name="Port Classification AHP", index=False)
+        df_excel.to_excel(writer, sheet_name="Port Classification AHP", index=False)
     excel_buf.seek(0)
     st.download_button(
         "⬇️ Download Excel",

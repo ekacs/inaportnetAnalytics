@@ -370,18 +370,34 @@ else:
     with col_dl2:
         st.markdown("#### 📊 Format Excel")
         excel_buf = io.BytesIO()
+        df_excel = df_download.copy()
+
+        # Hilangkan timezone dari kolom datetime (openpyxl requirement)
+        for col in df_excel.columns:
+            if pd.api.types.is_datetime64_any_dtype(df_excel[col]):
+                try:
+                    df_excel[col] = df_excel[col].dt.tz_localize(None)
+                except Exception:
+                    df_excel[col] = df_excel[col].astype(str)
+
+        # Batasi baris jika melebihi batas maksimal Excel (1,000,000 baris)
+        if len(df_excel) > 1_000_000:
+            df_excel_export = df_excel.iloc[:1_000_000]
+        else:
+            df_excel_export = df_excel
+
         with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-            df_download.to_excel(writer, sheet_name="Data PKK", index=False)
-            if "port_code" in df_download.columns and "approval_minutes" in df_download.columns:
+            df_excel_export.to_excel(writer, sheet_name="Data PKK", index=False)
+            if "port_code" in df_excel_export.columns and "approval_minutes" in df_excel_export.columns:
                 from modules.analysis import compute_port_summary
-                summary = compute_port_summary(df_download)
+                summary = compute_port_summary(df_excel_export)
                 if not summary.empty:
                     summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
         excel_buf.seek(0)
         st.download_button(
             label="⬇️ Download Excel",
             data=excel_buf,
-            file_name=f"inaportnet_pkk_db_{len(df_download)}_records.xlsx",
+            file_name=f"inaportnet_pkk_db_{len(df_excel_export)}_records.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             width="stretch",
         )
