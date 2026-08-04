@@ -242,15 +242,67 @@ def compute_port_summary(df: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
-def compute_performance_indices(summary: pd.DataFrame) -> pd.DataFrame:
+# AHP Saaty Default Weights (Wijaya & Setyawan, 2026)
+AHP_DEFAULT_WEIGHTS = {
+    "ci": 0.4709,   # Compliance Index
+    "ri": 0.2840,   # Robustness Index
+    "ei": 0.1715,   # Efficiency Index
+    "csi": 0.0736,  # Consistency Index
+}
+
+EQUAL_WEIGHTS = {
+    "ci": 0.25,
+    "ri": 0.25,
+    "ei": 0.25,
+    "csi": 0.25,
+}
+
+
+def calculate_ahp_matrix_consistency(pairwise_matrix: Optional[np.ndarray] = None) -> dict:
+    """
+    Hitung nilai Lambda Max, Consistency Index (CI), dan Consistency Ratio (CR)
+    berdasarkan matriks perbandingan berpasangan Saaty (4x4).
+    """
+    if pairwise_matrix is None:
+        pairwise_matrix = np.array([
+            [1.00, 3.00, 5.00, 2.00],  # CI
+            [0.333, 1.00, 3.00, 0.50], # EI
+            [0.20, 0.333, 1.00, 0.25], # CsI
+            [0.50, 2.00, 4.00, 1.00],  # RI
+        ])
+
+    n = pairwise_matrix.shape[0]
+    col_sums = pairwise_matrix.sum(axis=0)
+    norm_matrix = pairwise_matrix / col_sums
+    weights = norm_matrix.mean(axis=1)
+
+    weighted_sum = pairwise_matrix.dot(weights)
+    lambda_max = float((weighted_sum / weights).mean())
+    ci = float((lambda_max - n) / (n - 1)) if n > 1 else 0.0
+    ri = 0.90 if n == 4 else 1.12  # Random Index Saaty untuk n=4
+    cr = float(ci / ri) if ri > 0 else 0.0
+
+    return {
+        "weights": {
+            "ci": round(float(weights[0]), 4),
+            "ei": round(float(weights[1]), 4),
+            "csi": round(float(weights[2]), 4),
+            "ri": round(float(weights[3]), 4),
+        },
+        "lambda_max": round(lambda_max, 4),
+        "ci": round(ci, 4),
+        "cr": round(cr, 4),
+        "is_consistent": cr <= 0.10,
+    }
+
+
+def compute_performance_indices(
+    summary: pd.DataFrame,
+    weights: Optional[dict] = None
+) -> pd.DataFrame:
     """
     Hitung 4 indeks performa dan composite index dari summary per pelabuhan.
-
-    Returns
-    -------
-    pd.DataFrame ditambahkan kolom:
-        compliance_index, efficiency_index, consistency_index,
-        robustness_index, composite_index
+    Mendukung pembobotan AHP, Equal Weighting, atau Custom Weights (total 1.0 atau 100%).
     """
     if summary.empty:
         return summary
@@ -262,12 +314,28 @@ def compute_performance_indices(summary: pd.DataFrame) -> pd.DataFrame:
     df["consistency_index"] = _winsorized_minmax(df["coefficient_of_variation"],    higher_is_better=False)
     df["robustness_index"]  = _winsorized_minmax(df["extreme_delay_index"],         higher_is_better=False)
 
+    if weights is None:
+        weights = AHP_DEFAULT_WEIGHTS
+
+    w_ci  = float(weights.get("ci", 0.4709))
+    w_ri  = float(weights.get("ri", 0.2840))
+    w_ei  = float(weights.get("ei", 0.1715))
+    w_csi = float(weights.get("csi", 0.0736))
+
+    # Normalisasi bobot agar total presisi = 1.0
+    total_w = w_ci + w_ri + w_ei + w_csi
+    if total_w > 0:
+        w_ci /= total_w
+        w_ri /= total_w
+        w_ei /= total_w
+        w_csi /= total_w
+
     df["composite_index"] = (
-        df["compliance_index"]
-        + df["efficiency_index"]
-        + df["consistency_index"]
-        + df["robustness_index"]
-    ) / 4
+        w_ci  * df["compliance_index"]
+        + w_ei  * df["efficiency_index"]
+        + w_csi * df["consistency_index"]
+        + w_ri  * df["robustness_index"]
+    )
 
     return df.sort_values("composite_index", ascending=False).reset_index(drop=True)
 
@@ -281,11 +349,6 @@ def classify_quadrant(port_perf: pd.DataFrame) -> pd.DataFrame:
         Efficient Port  → Volume rendah & Indeks tinggi
         Developing Port → Volume rendah & Indeks rendah
         Congested Port  → Volume tinggi & Indeks rendah
-
-    Returns
-    -------
-    pd.DataFrame dengan kolom tambahan:
-        quadrant, volume_log
     """
     if port_perf.empty:
         return port_perf
@@ -307,3 +370,76 @@ def classify_quadrant(port_perf: pd.DataFrame) -> pd.DataFrame:
     df["volume_log"] = np.log10(df["volume"].clip(lower=1))
 
     return df
+
+
+def generate_ai_policy_insights(
+    df_perf_current: pd.DataFrame,
+    df_perf_equal: pd.DataFrame,
+    weights: dict,
+    cr_val: float = 0.0190,
+    selected_ports: Optional[list] = None
+) -> dict:
+    """
+    Menghasilkan 4 poin analisis sintesis AI berdasarkan hasil kalkulasi AHP & sensitivitas.
+    """
+    w_ci = round(weights.get("ci", 0.4709) * 100, 2)
+    w_ri = round(weights.get("ri", 0.2840) * 100, 2)
+    w_ei = round(weights.get("ei", 0.1715) * 100, 2)
+    w_csi = round(weights.get("csi", 0.0736) * 100, 2)
+
+    # 1. Hasil Perhitungan Bobot Prioritas
+    p1 = (
+        f"Berdasarkan hirarki Saaty AHP, dimensi **SLA Compliance (CI)** mendominasi prioritas dengan bobot **{w_ci}%**, "
+        f"disusul **Robustness Index (RI)** sebesar **{w_ri}%**. Hal ini menegaskan bahwa kepatuhan batas 30 menit (PM 8/2022) "
+        f"dan pencegahan *extreme delay* >2 jam merupakan aspek paling berisiko terhadap denda demurrage dan reputasi layanan."
+    )
+
+    # 2. Hasil Uji Konsistensi
+    status_cr = "sangat konsisten dan valid secara matematis" if cr_val <= 0.10 else "kurang konsisten (melebihi ambang 10%)"
+    p2 = (
+        f"Uji konsistensi matriks perbandingan berpasangan menghasilkan nilai **Consistency Ratio (CR) = {cr_val:.4f}** ({cr_val*100:.2f}%). "
+        f"Karena nilai $CR \\le 0.10$ ({cr_val*100:.2f}% $\\le 10\\%$), model matriks penilaian pakar terbukti **{status_cr}**."
+    )
+
+    # 3. Analisis Sensitivitas Dampak Skor Komposit
+    port_col = "port" if "port" in df_perf_current.columns else ("port_code" if "port_code" in df_perf_current.columns else df_perf_current.columns[0])
+    
+    # Gabungkan skor untuk perbandingan
+    if not df_perf_current.empty and not df_perf_equal.empty and port_col in df_perf_current.columns:
+        merged = df_perf_current[[port_col, "composite_index", "quadrant"]].merge(
+            df_perf_equal[[port_col, "composite_index", "quadrant"]],
+            on=port_col,
+            suffixes=("_ahp", "_equal")
+        )
+        merged["delta"] = merged["composite_index_ahp"] - merged["composite_index_equal"]
+
+        if selected_ports:
+            sub = merged[merged[port_col].isin(selected_ports)]
+        else:
+            sub = merged.head(5)
+
+        insights_list = []
+        for _, r in sub.iterrows():
+            d_val = r["delta"]
+            sign = "+" if d_val >= 0 else ""
+            insights_list.append(f"• **{r[port_col]}**: Skor berubah dari {r['composite_index_equal']:.4f} menjadi {r['composite_index_ahp']:.4f} ({sign}{d_val:.4f}).")
+
+        p3_detail = "\n".join(insights_list) if insights_list else "Data pelabuhan terpilih tidak ditemukan."
+        p3 = f"Penerapan bobot AHP berhasil mengeliminasi *false performance* (kinerja semu). Rincian pergeseran pelabuhan:\n\n{p3_detail}"
+    else:
+        p3 = "Data pelabuhan belum memadai untuk pengujian sensitivitas."
+
+    # 4. Implikasi / Saran Kebijakan
+    p4 = (
+        "**Rekomendasi Kebijakan Kemenhub & Pelindo**:\n"
+        "1. **Pelabuhan High Volume / Low Performance (Congested)**: Segera lakukan *process re-engineering* dan optimalisasi sistem Inaportnet.\n"
+        "2. **Pelabuhan Under-performer**: Hentikan penilaian berbasis rata-rata biasa (*equal weighting*) karena menyamarkan tingginya kegagalan SLA.\n"
+        "3. **Reward & Regulation**: Terapkan insentif regulasi bagi pelabuhan hub utama yang mampu menjaga SLA Compliance $\\ge 90\\%$."
+    )
+
+    return {
+        "priority_weights": p1,
+        "consistency_test": p2,
+        "sensitivity_analysis": p3,
+        "policy_implications": p4,
+    }

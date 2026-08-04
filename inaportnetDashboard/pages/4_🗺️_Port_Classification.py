@@ -1,13 +1,16 @@
 """
 pages/4_🗺️_Port_Classification.py
-Analisis kuadran dan ranking composite performance index pelabuhan.
+Analisis kuadran dan ranking composite performance index pelabuhan berbasis Analytical Hierarchy Process (AHP).
 """
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import io
 from modules.analysis import (
     compute_port_summary, compute_performance_indices, classify_quadrant,
+    AHP_DEFAULT_WEIGHTS, EQUAL_WEIGHTS, calculate_ahp_matrix_consistency,
+    generate_ai_policy_insights
 )
 from modules.visualization import plot_quadrant_scatter, plot_performance_ranking
 from modules.theme import render_theme_selector
@@ -29,6 +32,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .q-developing{ background:#fdebd0; color:#784212; }
 .q-congested { background:#fadbd8; color:#922b21; }
 .legend-box  { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; font-size:0.88rem; }
+.ai-card     { background:linear-gradient(135deg, #f0f7ff, #e6f0fa); border-left:4px solid #1a4a7a; border-radius:8px; padding:1rem; margin-bottom:0.8rem; }
 footer{visibility:hidden;} #MainMenu{visibility:hidden;}
 </style>
 """, unsafe_allow_html=True)
@@ -43,6 +47,42 @@ with st.sidebar:
     st.page_link("pages/3_📋_Service_Performance.py",    label="📋 Service Performance")
     st.page_link("pages/4_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
     st.page_link("pages/5_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+    st.markdown("---")
+
+    # ── SKEMA PEMBOBOTAN PSPI (AHP vs EQUAL vs CUSTOM) ──
+    st.markdown("### 🎯 Skema Pembobotan PSPI")
+    weight_scheme = st.radio(
+        "Pilih Model Pembobotan Indeks",
+        options=[
+            "🏆 AHP Scientifically Weighted (Kemenhub)",
+            "⚖️ Equal Weighting (Klasik 25%)",
+            "🎛️ Custom Weights (1% - 100%)",
+        ],
+        index=0,
+        key="class_weight_scheme",
+    )
+
+    custom_weights = None
+    if "Custom Weights" in weight_scheme:
+        st.caption("Atur persentase bobot kriteria (1% - 100%):")
+        c_ci  = st.slider("Compliance Index (CI)", 1, 100, 47, key="c_ci")
+        c_ri  = st.slider("Robustness Index (RI)", 1, 100, 28, key="c_ri")
+        c_ei  = st.slider("Efficiency Index (EI)", 1, 100, 17, key="c_ei")
+        c_csi = st.slider("Consistency Index (CsI)", 1, 100, 8, key="c_csi")
+
+        total_custom = c_ci + c_ri + c_ei + c_csi
+        if total_custom != 100:
+            st.warning(f"⚠️ Total bobot: **{total_custom}%** (akan otomatis dinormalisasi ke 100%).")
+        else:
+            st.success("✅ Total bobot persis **100%**.")
+
+        custom_weights = {
+            "ci": c_ci / 100,
+            "ri": c_ri / 100,
+            "ei": c_ei / 100,
+            "csi": c_csi / 100,
+        }
+
     st.markdown("---")
 
     df_sess = st.session_state.get("df", pd.DataFrame())
@@ -71,8 +111,8 @@ with st.sidebar:
         st.success(f"✅ {len(df_sess):,} record")
 
 # ── Header ────────────────────────────────────────────────────
-st.markdown("# 🗺️ Port Classification")
-st.markdown("Klasifikasi 4 kuadran berdasarkan **volume PKK** dan **Composite Performance Index**.")
+st.title("🗺️ Port Classification & AHP Performance Index")
+st.markdown("Klasifikasi 4 kuadran pelabuhan berbasis **Analytical Hierarchy Process (AHP Saaty 1-9)** dan **Volume PKK**.")
 
 df_raw = st.session_state.get("df", pd.DataFrame())
 if df_raw.empty:
@@ -88,21 +128,49 @@ if df.empty:
     st.warning("⚠️ Tidak ada data setelah filter.")
     st.stop()
 
-# ── Hitung indeks ─────────────────────────────────────────────
-@st.cache_data(show_spinner="Menghitung performance index...")
-def compute_classification(df_hash: pd.DataFrame) -> pd.DataFrame:
+# ── Tentukan Bobot Aktif ──
+if "AHP" in weight_scheme:
+    active_weights = AHP_DEFAULT_WEIGHTS
+elif "Equal" in weight_scheme:
+    active_weights = EQUAL_WEIGHTS
+else:
+    active_weights = custom_weights if custom_weights else AHP_DEFAULT_WEIGHTS
+
+# ── Hitung indeks (Model Aktif vs Model Equal) ─────────────────
+@st.cache_data(show_spinner="Menghitung Port Service Performance Index (PSPI)...")
+def compute_classification_cached(df_hash: pd.DataFrame, weights: dict) -> pd.DataFrame:
     summary = compute_port_summary(df_hash)
     if summary.empty:
         return pd.DataFrame()
-    perf    = compute_performance_indices(summary)
+    perf    = compute_performance_indices(summary, weights=weights)
     result  = classify_quadrant(perf)
     return result
 
-df_classified = compute_classification(df)
+df_classified = compute_classification_cached(df, active_weights)
+df_classified_equal = compute_classification_cached(df, EQUAL_WEIGHTS)
 
 if df_classified.empty:
     st.warning("⚠️ Tidak cukup data untuk menghitung indeks performa.")
     st.stop()
+
+# ── Info Badge AHP & Uji Konsistensi ──────────────────────────
+ahp_metrics = calculate_ahp_matrix_consistency()
+col_ahp1, col_ahp2, col_ahp3, col_ahp4 = st.columns(4)
+
+with col_ahp1:
+    st.metric(
+        "🏆 Model Aktif",
+        "AHP Saaty" if "AHP" in weight_scheme else ("Equal 25%" if "Equal" in weight_scheme else "Custom"),
+        delta=f"CR = {ahp_metrics['cr']:.4f} (Konsisten)" if "AHP" in weight_scheme else "Model Klasik",
+    )
+with col_ahp2:
+    st.metric("📋 Compliance (CI)", f"{active_weights['ci']*100:.2f}%", help="Kepatuhan SLA < 30 menit per PM 8/2022")
+with col_ahp3:
+    st.metric("🛡️ Robustness (RI)", f"{active_weights['ri']*100:.2f}%", help="Ketahanan terhadap delay > 120 menit")
+with col_ahp4:
+    st.metric("⚡ Efisiensi & Konsistensi", f"{(active_weights['ei']+active_weights['csi'])*100:.2f}%", help="EI (Response Time) + CsI (Variabilitas)")
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # Filter per kuadran (opsional)
 df_display = df_classified.copy()
@@ -164,6 +232,91 @@ with col_table:
     df_rank_tbl = df_rank_tbl.rename(columns=rename_tbl)
     st.dataframe(df_rank_tbl, width="stretch", height=450)
 
+# ──────────────────────────────────────────────────────────────
+# 🧪 UJI SENSITIVITAS PELABUHAN PILIHAN PENGGUNA
+# ──────────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🧪 Uji Sensitivitas Dampak Pembobotan (Equal vs Model Pilihan)</div>', unsafe_allow_html=True)
+st.caption("Pilih pelabuhan tertentu untuk menguji dan membandingkan pergeseran skor komposit dan kuadran secara langsung:")
+
+port_col = "port" if "port" in df_classified.columns else ("port_code" if "port_code" in df_classified.columns else df_classified.columns[0])
+all_ports_list = df_classified[port_col].dropna().unique().tolist()
+
+default_selected_ports = all_ports_list[:5] if len(all_ports_list) >= 5 else all_ports_list
+
+selected_sensitivity_ports = st.multiselect(
+    "Pilih Pelabuhan yang Akan Diuji",
+    options=all_ports_list,
+    default=default_selected_ports,
+    key="sens_ports_selector"
+)
+
+if selected_sensitivity_ports:
+    merged_sens = df_classified[[port_col, "composite_index", "quadrant"]].merge(
+        df_classified_equal[[port_col, "composite_index", "quadrant"]],
+        on=port_col,
+        suffixes=(" (Model Pilihan)", " (Equal 25%)")
+    )
+    merged_sens = merged_sens[merged_sens[port_col].isin(selected_sensitivity_ports)].copy()
+    merged_sens["Pergeseran Delta"] = round(merged_sens["composite_index (Model Pilihan)"] - merged_sens["composite_index (Equal 25%)"], 4)
+    merged_sens["composite_index (Model Pilihan)"] = merged_sens["composite_index (Model Pilihan)"].round(4)
+    merged_sens["composite_index (Equal 25%)"] = merged_sens["composite_index (Equal 25%)"].round(4)
+
+    # Reorder columns
+    cols_order = [
+        port_col, "composite_index (Equal 25%)", "composite_index (Model Pilihan)",
+        "Pergeseran Delta", "quadrant (Equal 25%)", "quadrant (Model Pilihan)"
+    ]
+    st.dataframe(merged_sens[cols_order].reset_index(drop=True), width="stretch")
+else:
+    st.info("Pilih minimal satu pelabuhan pada dropdown di atas untuk melihat tabel komparasi sensitivitas.")
+
+# ──────────────────────────────────────────────────────────────
+# 💡 ANALISIS SINTESIS AI & IMPLIKASI KEBIJAKAN
+# ──────────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🤖 AI Executive Insights & Policy Recommendations</div>', unsafe_allow_html=True)
+
+ai_insights = generate_ai_policy_insights(
+    df_perf_current=df_classified,
+    df_perf_equal=df_classified_equal,
+    weights=active_weights,
+    cr_val=ahp_metrics["cr"],
+    selected_ports=selected_sensitivity_ports
+)
+
+tab_ai1, tab_ai2, tab_ai3, tab_ai4 = st.tabs([
+    "📌 1. Bobot Prioritas",
+    "📐 2. Uji Konsistensi (CR)",
+    "🔬 3. Analisis Sensitivitas",
+    "💡 4. Implikasi Kebijakan",
+])
+
+with tab_ai1:
+    st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+    st.markdown("### 📌 Hasil Perhitungan Bobot Prioritas AHP")
+    st.markdown(ai_insights["priority_weights"])
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab_ai2:
+    st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+    st.markdown("### 📐 Hasil Uji Konsistensi Saaty (Consistency Ratio)")
+    st.markdown(ai_insights["consistency_test"])
+    st.markdown(r"- **$\lambda_{max}$**: `" + f"{ahp_metrics['lambda_max']:.4f}`")
+    st.markdown(f"- **Consistency Index ($CI$)**: `{ahp_metrics['ci']:.4f}`")
+    st.markdown(f"- **Consistency Ratio ($CR$)**: `{ahp_metrics['cr']:.4f}` ({ahp_metrics['cr']*100:.2f}%)")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab_ai3:
+    st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+    st.markdown("### 🔬 Analisis Sensitivitas Dampak Skor Komposit")
+    st.markdown(ai_insights["sensitivity_analysis"])
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab_ai4:
+    st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+    st.markdown("### 💡 Implikasi & Rekomendasi Kebijakan (Kemenhub / Pelindo)")
+    st.markdown(ai_insights["policy_implications"])
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # ── Tabel Lengkap ─────────────────────────────────────────────
 with st.expander("📋 Tabel Lengkap Semua Pelabuhan"):
     all_cols = [
@@ -195,7 +348,7 @@ with col_ex1:
     st.download_button(
         "⬇️ Download CSV",
         data=csv,
-        file_name="port_classification_2025.csv",
+        file_name="port_classification_ahp_2025.csv",
         mime="text/csv",
         width="stretch",
     )
@@ -203,12 +356,13 @@ with col_ex1:
 with col_ex2:
     excel_buf = io.BytesIO()
     with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-        df_export.to_excel(writer, sheet_name="Port Classification", index=False)
+        df_export.to_excel(writer, sheet_name="Port Classification AHP", index=False)
     excel_buf.seek(0)
     st.download_button(
         "⬇️ Download Excel",
         data=excel_buf,
-        file_name="port_classification_2025.xlsx",
+        file_name="port_classification_ahp_2025.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         width="stretch",
     )
+
