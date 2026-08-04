@@ -135,11 +135,11 @@ col_dist, col_hist = st.columns(2)
 with col_dist:
     df_dist = get_service_distribution(df)
     if not df_dist.empty:
-        st.plotly_chart(plot_service_distribution(df_dist), use_container_width=True)
+        st.plotly_chart(plot_service_distribution(df_dist), width="stretch")
 
 with col_hist:
     if "approval_minutes" in df.columns:
-        st.plotly_chart(plot_approval_histogram(df), use_container_width=True)
+        st.plotly_chart(plot_approval_histogram(df), width="stretch")
     else:
         st.info("Kolom 'approval_minutes' tidak tersedia.")
 
@@ -147,7 +147,7 @@ with col_hist:
 st.markdown('<div class="section-title">⏳ Top 10 Pelabuhan — Waktu Persetujuan Terlama</div>', unsafe_allow_html=True)
 df_top = get_top_longest_approval(df, n=10)
 if not df_top.empty:
-    st.plotly_chart(plot_top_longest_approval(df_top), use_container_width=True)
+    st.plotly_chart(plot_top_longest_approval(df_top), width="stretch")
 else:
     st.info("Data tidak tersedia.")
 
@@ -157,17 +157,17 @@ st.markdown(f'<div class="section-title">✅ SLA Compliance per Pelabuhan (thres
 df_sla = get_sla_compliance_by_port(df, sla_minutes=sla_threshold)
 if not df_sla.empty:
     n_show = st.slider("Tampilkan N pelabuhan terburuk", 10, min(50, len(df_sla)), 20, 5, key="sla_n")
-    st.plotly_chart(plot_sla_compliance_bar(df_sla, top_n=n_show), use_container_width=True)
+    st.plotly_chart(plot_sla_compliance_bar(df_sla, top_n=n_show), width="stretch")
 
     with st.expander("📋 Tabel Lengkap SLA per Pelabuhan"):
         display_sla = df_sla[["port_code","port","total","compliant","compliance_rate"]].copy()
         display_sla.columns = ["Kode","Pelabuhan","Total PKK","Dalam SLA","Compliance (%)"]
-        st.dataframe(display_sla.sort_values("Compliance (%)", ascending=True), use_container_width=True)
+        st.dataframe(display_sla.sort_values("Compliance (%)", ascending=True), width="stretch")
 
 # ── Tren SLA per Bulan ────────────────────────────────────────
 st.markdown(f'<div class="section-title">📈 Tren SLA Compliance per Bulan</div>', unsafe_allow_html=True)
 df_trend = get_sla_trend_monthly(df, sla_minutes=sla_threshold)
 if not df_trend.empty:
-    st.plotly_chart(plot_sla_trend(df_trend), use_container_width=True)
+    st.plotly_chart(plot_sla_trend(df_trend), width="stretch")
 else:
     st.info("Kolom 'month' tidak tersedia.")

@@ -131,7 +131,7 @@ col_donut, col_table = st.columns([2, 1])
 with col_donut:
     df_vol = get_port_volume(df)
     fig_donut = plot_volume_donut(df_vol)
-    st.plotly_chart(fig_donut, use_container_width=True)
+    st.plotly_chart(fig_donut, width="stretch")
 
 with col_table:
     st.markdown("**Top 10 Pelabuhan**")
@@ -140,13 +140,13 @@ with col_table:
         display_vol.columns = ["Pelabuhan", "Volume", "Share (%)"]
         display_vol = display_vol.reset_index(drop=True)
         display_vol.index += 1
-        st.dataframe(display_vol, use_container_width=True, height=380)
+        st.dataframe(display_vol, width="stretch", height=380)
 
 # ── Tren per Kuartal ─────────────────────────────────────────
 st.markdown('<div class="section-title">📆 Tren Volume per Kuartal</div>', unsafe_allow_html=True)
 if "quarter" in df.columns:
     df_qtr = get_trend_quarterly(df)
-    st.plotly_chart(plot_trend_quarterly(df_qtr), use_container_width=True)
+    st.plotly_chart(plot_trend_quarterly(df_qtr), width="stretch")
 else:
     st.info("Kolom 'quarter' tidak tersedia.")
 
@@ -154,7 +154,7 @@ else:
 st.markdown('<div class="section-title">🗓️ Tren Volume per Bulan</div>', unsafe_allow_html=True)
 if "month" in df.columns:
     df_mon = get_trend_monthly(df)
-    st.plotly_chart(plot_trend_monthly(df_mon), use_container_width=True)
+    st.plotly_chart(plot_trend_monthly(df_mon), width="stretch")
 else:
     st.info("Kolom 'month' tidak tersedia.")
 
@@ -165,7 +165,7 @@ with col_day:
     st.markdown('<div class="section-title">📅 Tren per Hari</div>', unsafe_allow_html=True)
     if "day" in df.columns:
         df_day = get_trend_daily(df)
-        st.plotly_chart(plot_trend_daily(df_day), use_container_width=True)
+        st.plotly_chart(plot_trend_daily(df_day), width="stretch")
     else:
         st.info("Kolom 'day' tidak tersedia.")
 
@@ -173,6 +173,6 @@ with col_hour:
     st.markdown('<div class="section-title">🕐 Tren per Jam</div>', unsafe_allow_html=True)
     if "hour" in df.columns:
         df_hour = get_trend_hourly(df)
-        st.plotly_chart(plot_trend_hourly(df_hour), use_container_width=True)
+        st.plotly_chart(plot_trend_hourly(df_hour), width="stretch")
     else:
         st.info("Kolom 'hour' tidak tersedia.")

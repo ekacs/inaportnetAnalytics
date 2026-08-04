@@ -165,7 +165,7 @@ with tab_scrape:
         "🚀 Mulai Scraping",
         type="primary",
         disabled=(not selected_port_codes or not angkutan_codes),
-        use_container_width=True,
+        width="stretch",
     )
 
     if btn_scrape:
@@ -240,7 +240,7 @@ with tab_scrape:
                     st.info(f"🧹 **{n_dups:,} record duplikat** terdeteksi dan dibersihkan dari hasil scraping.")
                 st.success(f"✅ **{len(df_processed):,} record bersih** berhasil diambil dan diproses.")
                 st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
-                result_area.dataframe(df_processed.head(10), use_container_width=True)
+                result_area.dataframe(df_processed.head(10), width="stretch")
 
                 # Simpan ke Supabase
                 if save_to_db and db_ok:
@@ -320,7 +320,7 @@ with tab_upload:
 
             # Preview
             with st.expander("🔍 Preview Data (10 baris pertama)", expanded=True):
-                st.dataframe(df_upload.head(10), use_container_width=True)
+                st.dataframe(df_upload.head(10), width="stretch")
 
             # Validasi
             validation = validate_uploaded_file(df_upload)
@@ -430,7 +430,7 @@ with tab_supabase:
             )
             filter_codes_db = [port_code_of[lbl] for lbl in filter_port_db if lbl in port_code_of]
 
-        if st.button("📥 Muat dari Supabase", type="primary", use_container_width=True):
+        if st.button("📥 Muat dari Supabase", type="primary", width="stretch"):
             with st.spinner("Mengambil data dari Supabase (mungkin memerlukan beberapa saat)..."):
                 df_db = fetch_pkk_records(
                     port_codes=filter_codes_db if filter_codes_db else None,
@@ -444,7 +444,7 @@ with tab_supabase:
                 st.session_state["df"] = df_db
                 st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari Supabase.")
                 with st.expander("🔍 Preview Data"):
-                    st.dataframe(df_db.head(20), use_container_width=True)
+                    st.dataframe(df_db.head(20), width="stretch")
 
 # ────────────────────────────────────────────────────────────────
 # TAB 4 — EKSPOR DATA
@@ -470,7 +470,7 @@ with tab_export:
                 data=csv_buf,
                 file_name="inaportnet_pkk_2025.csv",
                 mime="text/csv",
-                use_container_width=True,
+                width="stretch",
             )
 
         # Export Excel
@@ -493,12 +493,12 @@ with tab_export:
                 data=excel_buf,
                 file_name="inaportnet_pkk_2025.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
+                width="stretch",
             )
 
         # Preview kolom
         st.markdown("#### 🔍 Preview Data")
-        st.dataframe(df_current.head(20), use_container_width=True)
+        st.dataframe(df_current.head(20), width="stretch")
 
         col_stat1, col_stat2, col_stat3 = st.columns(3)
         with col_stat1:

@@ -134,7 +134,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Scatter Plot Kuadran ──────────────────────────────────────
 st.markdown('<div class="section-title">📍 Analisis Kuadran — Scatter Plot Interaktif</div>', unsafe_allow_html=True)
-st.plotly_chart(plot_quadrant_scatter(df_display), use_container_width=True)
+st.plotly_chart(plot_quadrant_scatter(df_display), width="stretch")
 
 # ── Ranking Composite Index ───────────────────────────────────
 st.markdown('<div class="section-title">🏅 Ranking Composite Performance Index</div>', unsafe_allow_html=True)
@@ -142,7 +142,7 @@ st.markdown('<div class="section-title">🏅 Ranking Composite Performance Index
 col_rank, col_table = st.columns([2, 1])
 
 with col_rank:
-    st.plotly_chart(plot_performance_ranking(df_display, top_n=top_n_rank), use_container_width=True)
+    st.plotly_chart(plot_performance_ranking(df_display, top_n=top_n_rank), width="stretch")
 
 with col_table:
     st.markdown(f"**Top {top_n_rank} Pelabuhan**")
@@ -162,7 +162,7 @@ with col_table:
         "quadrant": "Kuadran",
     }
     df_rank_tbl = df_rank_tbl.rename(columns=rename_tbl)
-    st.dataframe(df_rank_tbl, use_container_width=True, height=450)
+    st.dataframe(df_rank_tbl, width="stretch", height=450)
 
 # ── Tabel Lengkap ─────────────────────────────────────────────
 with st.expander("📋 Tabel Lengkap Semua Pelabuhan"):
@@ -178,7 +178,7 @@ with st.expander("📋 Tabel Lengkap Semua Pelabuhan"):
     # Format desimal
     float_cols = [c for c in show_cols if df_full[c].dtype == float]
     df_full[float_cols] = df_full[float_cols].round(4)
-    st.dataframe(df_full, use_container_width=True)
+    st.dataframe(df_full, width="stretch")
 
 # ── Ekspor Klasifikasi ────────────────────────────────────────
 st.markdown('<div class="section-title">💾 Ekspor Hasil Klasifikasi</div>', unsafe_allow_html=True)
@@ -197,7 +197,7 @@ with col_ex1:
         data=csv,
         file_name="port_classification_2025.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
 with col_ex2:
@@ -210,5 +210,5 @@ with col_ex2:
         data=excel_buf,
         file_name="port_classification_2025.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
+        width="stretch",
     )

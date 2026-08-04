@@ -122,11 +122,11 @@ if hasattr(st, "dialog"):
                 f"- Total record bersih: **{res['clean_count']:,}**"
             )
             st.session_state["db_dedup_checked"] = True
-            if st.button("🚀 Tampilkan Live View", type="primary", use_container_width=True):
+            if st.button("🚀 Tampilkan Live View", type="primary", width="stretch"):
                 st.rerun()
         else:
             st.error(f"❌ Gagal memproses duplikasi: {res['error']}")
-            if st.button("Tutup", use_container_width=True):
+            if st.button("Tutup", width="stretch"):
                 st.rerun()
 else:
     def render_dedup_dialog():
@@ -271,11 +271,11 @@ with col_stat_info:
     )
 
 with col_btn_dedup:
-    if st.button("🧹 Bersihkan Duplikat", type="secondary", use_container_width=True, help="Deteksi dan hapus duplikasi data di Supabase"):
+    if st.button("🧹 Bersihkan Duplikat", type="secondary", width="stretch", help="Deteksi dan hapus duplikasi data di Supabase"):
         render_dedup_dialog()
 
 with col_btn_load:
-    if st.button("📥 Muat ke Sesi Analisis", type="primary", use_container_width=True):
+    if st.button("📥 Muat ke Sesi Analisis", type="primary", width="stretch"):
         if not df_db_view.empty:
             st.session_state["df"] = df_db_view
             st.success(f"✅ **{len(df_db_view):,} record** dimuat ke sesi analisis aktif.")
@@ -309,7 +309,7 @@ else:
     # Render Interactive DataFrame
     st.dataframe(
         df_db_view,
-        use_container_width=True,
+        width="stretch",
         height=450,
         column_config=cfg_used
     )
@@ -360,7 +360,7 @@ else:
             data=csv_bytes,
             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.csv",
             mime="text/csv",
-            use_container_width=True,
+            width="stretch",
         )
 
     # 2. Download Excel
@@ -380,7 +380,7 @@ else:
             data=excel_buf,
             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
+            width="stretch",
         )
 
     # 3. Download JSON
@@ -392,7 +392,7 @@ else:
             data=json_str.encode("utf-8"),
             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.json",
             mime="application/json",
-            use_container_width=True,
+            width="stretch",
         )
 
     # 4. Download SQL Dump
@@ -404,5 +404,5 @@ else:
             data=sql_dump.encode("utf-8"),
             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.sql",
             mime="application/sql",
-            use_container_width=True,
+            width="stretch",
         )
