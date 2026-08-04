@@ -281,7 +281,7 @@ st.markdown("""
         Transforming Inaportnet port operational data into actionable strategic insights across 259 ports in Indonesia. 🌊⚓
     </p>
     <div style="display: inline-block; background: rgba(255,255,255,0.12); padding: 0.6rem 1.4rem; border-radius: 30px; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2);">
-        ☕ <b>Suka dengan platform ini?</b> klik disini <a href="https://saweria.co/auditorzamannow">Traktir kopi</a> biar kami makin semangat berinovasi!
+        ☕ <b>Suka dengan platform ini?</b> klik disini <a href="https://saweria.co/auditorzamannow" target="_blank" style="color: #FFD700; font-weight: 700; text-decoration: underline; padding: 0 4px;">Traktir Kopi</a> biar kami makin semangat berinovasi!
     </div>
 </div>
 """, unsafe_allow_html=True)

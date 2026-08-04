@@ -75,6 +75,15 @@ html, body, [class*="css"] {
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
+a {
+    color: #0284c7;
+    font-weight: 600;
+    text-decoration: underline;
+}
+a:hover {
+    color: #0369a1;
+}
+
 footer{visibility:hidden;} #MainMenu{visibility:hidden;} [data-testid="stSidebarNav"]{display:none !important;}
 </style>
 """
@@ -114,6 +123,15 @@ html, body, [class*="css"] {
 
 [data-testid="stSidebar"] * {
     color: #f8fafc !important;
+}
+
+a {
+    color: #38bdf8 !important;
+    font-weight: 600 !important;
+    text-decoration: underline !important;
+}
+a:hover {
+    color: #7dd3fc !important;
 }
 
 .section-header {
