@@ -266,6 +266,123 @@ def fetch_pkk_records(
         return pd.DataFrame()
 
 
+def fetch_pkk_records_with_progress(
+    port_codes: Optional[List[str]] = None,
+    year: Optional[int] = None,
+    angkutan: Optional[List[str]] = None,
+    page_size: int = 5000,
+    label: str = "📥 Mengambil data dari Supabase..."
+) -> pd.DataFrame:
+    """
+    Mengambil data dari Supabase dengan tampilan progress bar interaktif,
+    kecepatan unduh (record/dtk), dan estimasi waktu tersisa (ETA).
+    """
+    import time
+    client = get_supabase_client()
+    if client is None:
+        st.error("❌ Supabase tidak terkonfigurasi.")
+        return pd.DataFrame()
+
+    # Hitung total record terfilter terlebih dahulu
+    total_count = 0
+    try:
+        count_q = client.table("pkk_records").select("*", count="exact")
+        if port_codes:
+            count_q = count_q.in_("port_code", port_codes)
+        if year:
+            count_q = count_q.eq("year", year)
+        if angkutan and len(angkutan) == 1:
+            count_q = count_q.eq("angkutan", angkutan[0])
+        count_res = count_q.limit(1).execute()
+        total_count = count_res.count if count_res.count is not None else 0
+    except Exception:
+        total_count = 0
+
+    progress_bar = st.progress(0.0)
+    status_box = st.empty()
+
+    start_time = time.time()
+    all_records = []
+    offset = 0
+
+    try:
+        while True:
+            q = client.table("pkk_records").select("*")
+            if port_codes:
+                q = q.in_("port_code", port_codes)
+            if year:
+                q = q.eq("year", year)
+            if angkutan and len(angkutan) == 1:
+                q = q.eq("angkutan", angkutan[0])
+
+            response = q.range(offset, offset + page_size - 1).execute()
+            if not response.data:
+                break
+
+            all_records.extend(response.data)
+            current_count = len(all_records)
+            offset += page_size
+
+            elapsed = time.time() - start_time
+            speed = current_count / elapsed if elapsed > 0 else 0
+
+            if total_count > 0:
+                pct = min(1.0, current_count / total_count)
+                remaining = max(0, total_count - current_count)
+                eta = remaining / speed if speed > 0 else 0
+
+                if eta >= 60:
+                    eta_str = f"{int(eta // 60)} mnt {int(eta % 60)} dtk"
+                else:
+                    eta_str = f"{int(eta)} dtk"
+
+                progress_bar.progress(pct)
+                status_box.markdown(
+                    f"**{label}**\n\n"
+                    f"📊 **Progress**: `{current_count:,}` dari `{total_count:,}` record (**{pct*100:.1f}%**)\n\n"
+                    f"⚡ **Kecepatan**: `{int(speed):,}` record/detik | ⏳ **Perkiraan Waktu Tersisa (ETA)**: `{eta_str}`"
+                )
+            else:
+                progress_bar.progress(0.5)
+                status_box.markdown(
+                    f"**{label}**\n\n"
+                    f"📊 **Progress**: `{current_count:,}` record terunduh...\n\n"
+                    f"⚡ **Kecepatan**: `{int(speed):,}` record/detik"
+                )
+
+            if len(response.data) < page_size:
+                break
+
+        progress_bar.progress(1.0)
+        total_time = time.time() - start_time
+        status_box.success(f"✅ Berhasil mengunduh `{len(all_records):,}` record dari Supabase dalam `{total_time:.1f}` detik.")
+
+        if not all_records:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(all_records)
+
+        # Konversi tipe data
+        for col in ["submission", "response"]:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+        if "date" in df.columns:
+            df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
+        for col in ["approval_hours", "approval_minutes"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        for col in ["year", "month", "hour"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+
+        df = df.rename(columns={"pkk_number": "PKK_number", "gmt": "GMT"})
+        return df
+
+    except Exception as e:
+        status_box.error(f"❌ Error mengambil data dari Supabase: {e}")
+        return pd.DataFrame()
+
+
 def get_available_ports_from_db() -> List[str]:
     """Ambil daftar port_code yang tersedia di database."""
     client = get_supabase_client()

@@ -2,6 +2,14 @@
 app.py — Halaman Utama Inaportnet Analytics Dashboard
 """
 
+import sys
+from pathlib import Path
+
+# Ensure inaportnetDashboard directory is in sys.path for Streamlit Cloud
+dashboard_dir = str(Path(__file__).resolve().parent)
+if dashboard_dir not in sys.path:
+    sys.path.insert(0, dashboard_dir)
+
 import streamlit as st
 from modules.database import is_connected, get_database_stats
 from modules.theme import render_theme_selector

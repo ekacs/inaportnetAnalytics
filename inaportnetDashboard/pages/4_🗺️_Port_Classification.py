@@ -3,6 +3,14 @@ pages/4_🗺️_Port_Classification.py
 Analisis kuadran dan ranking composite performance index pelabuhan berbasis Analytical Hierarchy Process (AHP).
 """
 
+import sys
+from pathlib import Path
+
+# Ensure inaportnetDashboard directory is in sys.path for Streamlit Cloud
+dashboard_dir = str(Path(__file__).resolve().parent.parent)
+if dashboard_dir not in sys.path:
+    sys.path.insert(0, dashboard_dir)
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -147,14 +155,13 @@ if df_raw.empty:
     st.warning("⚠️ Belum ada data di sesi ini.")
     if is_connected():
         if st.button("📥 Auto-Load Data dari Supabase", type="primary"):
-            with st.spinner("Mengambil data dari Supabase..."):
-                from modules.database import fetch_pkk_records
-                df_loaded = fetch_pkk_records(page_size=1000)
-                if not df_loaded.empty:
-                    st.session_state["df"] = df_loaded
-                    st.rerun()
-                else:
-                    st.error("❌ Supabase masih kosong.")
+            from modules.database import fetch_pkk_records_with_progress
+            df_loaded = fetch_pkk_records_with_progress(page_size=5000)
+            if not df_loaded.empty:
+                st.session_state["df"] = df_loaded
+                st.rerun()
+            else:
+                st.error("❌ Supabase masih kosong.")
     else:
         st.info("Silakan muat file data di halaman **📊 Data Collection**.")
     st.stop()

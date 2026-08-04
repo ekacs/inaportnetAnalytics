@@ -3,6 +3,14 @@ pages/1_📊_Data_Collection.py
 Halaman pengumpulkan data: scraping Inaportnet & upload file eksternal (otomatis tersimpan ke Supabase).
 """
 
+import sys
+from pathlib import Path
+
+# Ensure inaportnetDashboard directory is in sys.path for Streamlit Cloud
+dashboard_dir = str(Path(__file__).resolve().parent.parent)
+if dashboard_dir not in sys.path:
+    sys.path.insert(0, dashboard_dir)
+
 import streamlit as st
 import pandas as pd
 import io
