@@ -7,6 +7,7 @@ load dari Supabase, dan ekspor data.
 import streamlit as st
 import pandas as pd
 import io
+import zipfile
 from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
@@ -165,7 +166,6 @@ with tab_scrape:
         "🚀 Mulai Scraping",
         type="primary",
         disabled=(not selected_port_codes or not angkutan_codes),
-        width="stretch",
     )
 
     if btn_scrape:
@@ -287,11 +287,32 @@ with tab_upload:
             parse_progress.progress(20)
 
             # Optimasi Parsing berdasarkan format
-            if file_name_lower.endswith(".parquet"):
+            if file_name_lower.endswith(".zip"):
+                # Ekstraksi file ZIP
+                with zipfile.ZipFile(uploaded_file) as z:
+                    file_list = [f for f in z.namelist() if not f.startswith("__MACOSX") and not f.endswith("/")]
+                    csv_files = [f for f in file_list if f.lower().endswith(".csv")]
+                    parquet_files = [f for f in file_list if f.lower().endswith(".parquet")]
+                    excel_files = [f for f in file_list if f.lower().endswith(".xlsx") or f.lower().endswith(".xls")]
+
+                    parse_progress.progress(50)
+                    if csv_files:
+                        with z.open(csv_files[0]) as f:
+                            df_upload = pd.read_csv(f)
+                    elif parquet_files:
+                        with z.open(parquet_files[0]) as f:
+                            df_upload = pd.read_parquet(f)
+                    elif excel_files:
+                        with z.open(excel_files[0]) as f:
+                            df_upload = pd.read_excel(f)
+                    else:
+                        raise ValueError("Tidak ditemukan file CSV, Parquet, atau Excel di dalam arsip ZIP tersebut.")
+                parse_progress.progress(100)
+            elif file_name_lower.endswith(".parquet"):
                 # Parquet (Format biner sangat cepat)
                 df_upload = pd.read_parquet(uploaded_file)
                 parse_progress.progress(100)
-            elif file_name_lower.endswith(".csv") or file_name_lower.endswith(".gz") or file_name_lower.endswith(".zip"):
+            elif file_name_lower.endswith(".csv") or file_name_lower.endswith(".gz"):
                 # Gunakan PyArrow engine jika tersedia untuk kecepatan multi-threading maksimal
                 try:
                     parse_progress.progress(40)
