@@ -11,15 +11,21 @@ from typing import Optional, List
 # Client Supabase (singleton via cache_resource)
 # ──────────────────────────────────────────────────────────────
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
+def _create_supabase_client_cached(url: str, key: str):
+    from supabase import create_client
+    return create_client(url, key)
+
+
 def get_supabase_client():
     """Mengembalikan Supabase client. Menggunakan st.secrets untuk kredensial."""
     try:
-        from supabase import create_client
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception as e:
+        url = st.secrets.get("SUPABASE_URL", "")
+        key = st.secrets.get("SUPABASE_KEY", "")
+        if not url or not key:
+            return None
+        return _create_supabase_client_cached(url, key)
+    except Exception:
         return None
 
 
