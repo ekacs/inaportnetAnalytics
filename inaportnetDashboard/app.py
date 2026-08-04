@@ -10,7 +10,7 @@ from modules.theme import render_theme_selector
 # Page config
 # ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Inaportnet Analytics",
+    page_title="Inaportnet Analytics (feat AHP methode)",
     page_icon="🚢",
     layout="wide",
     initial_sidebar_state="expanded",
