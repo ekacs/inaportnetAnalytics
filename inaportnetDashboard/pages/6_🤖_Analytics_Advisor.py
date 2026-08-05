@@ -146,7 +146,7 @@ available_ports = sorted(df_classified[port_col].dropna().unique().tolist())
 col_sel1, col_sel2 = st.columns([2.5, 1])
 with col_sel1:
     selected_port = st.selectbox(
-        "🏗️ **Pilih Pelabuhan Spesifik untuk Evaluasi AI & Pendapat Kebijakan:**",
+        "🏗️ **Pilih Pelabuhan Spesifik untuk Evaluasi & Pendapat Kebijakan:**",
         options=available_ports,
         index=0 if available_ports else None,
         key="advisor_port_selectbox"
