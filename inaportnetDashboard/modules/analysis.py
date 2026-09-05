@@ -392,6 +392,7 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
             )
             data["rf_same_vessel_2ports"] = same_vessel_diff_port.fillna(False)
             data.drop(columns=["sub_dt", "prev_vessel", "prev_port", "prev_time"], errors="ignore", inplace=True)
+            data = data.sort_index()
         except Exception:
             data["rf_same_vessel_2ports"] = False
     else:

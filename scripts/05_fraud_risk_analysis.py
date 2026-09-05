@@ -76,6 +76,7 @@ def run_rule_based_detection(df: pd.DataFrame) -> pd.DataFrame:
         )
         data["rf_same_vessel_2ports"] = same_vessel_diff_port.fillna(False)
         data.drop(columns=["prev_vessel", "prev_port", "prev_time"], errors="ignore", inplace=True)
+        data = data.sort_index()
     else:
         data["rf_same_vessel_2ports"] = False
 
