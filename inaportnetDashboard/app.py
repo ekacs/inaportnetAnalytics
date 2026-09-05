@@ -116,6 +116,7 @@ with st.sidebar:
     st.page_link("pages/3_📋_Service_Performance.py",           label="📋 Service Performance")
     st.page_link("pages/4_🗺️_Port_Classification.py",           label="🗺️ Port Classification")
     st.page_link("pages/5_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
+    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",          label="🛡️ Fraud Risk Screening")
     st.markdown("---")
 
     # Status koneksi database
@@ -135,7 +136,7 @@ with st.sidebar:
         st.markdown('<span class="status-err">❌ Belum ada data</span>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown('<p style="font-size:0.75rem; opacity:0.5;">v1.0 · 2025</p>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:0.75rem; opacity:0.5;">v3.0 · 2026 CFRSI Edition</p>', unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────
 # Hero Header
@@ -143,9 +144,9 @@ with st.sidebar:
 st.markdown("""
 <div class="hero">
     <h1>🚢 Inaportnet Analytics</h1>
-    <p>Sistem Analisis Performa Layanan PKK — 259 Pelabuhan Indonesia</p>
+    <p>Sistem Analisis Performa & Fraud Risk Screening Index (CFRSI) Layanan PKK — 257+ Pelabuhan Indonesia</p>
     <span class="badge">📅 Tahun 2025</span>
-    <span class="badge" style="margin-left:8px">🗺️ Kemenhub — Inaportnet</span>
+    <span class="badge" style="margin-left:8px">🛡️ CFRSI Anti-Fraud Engine Enabled</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -159,7 +160,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     c1, c2, c3, c4, c5 = st.columns(5)
     metrics = [
         (c1, f"{stats.get('total_pkk', 0):,}",          "Total PKK",            "Data tersedia"),
-        (c2, f"{stats.get('active_ports', 0)}",          "Pelabuhan Aktif",      "Dari 259 pelabuhan"),
+        (c2, f"{stats.get('active_ports', 0)}",          "Pelabuhan Aktif",      "Dari 257 pelabuhan"),
         (c3, f"{stats.get('mean_minutes', 0):.1f} mnt",  "Rata-rata Persetujuan","Waktu approval"),
         (c4, f"{stats.get('median_minutes', 0):.1f} mnt","Median Persetujuan",   "Waktu approval"),
         (c5, f"{stats.get('sla_rate', 0):.1f}%",         "SLA Compliance",       "< 30 menit"),
@@ -180,7 +181,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
 # ──────────────────────────────────────────────────────────────
 st.markdown("### 📌 Navigasi Halaman")
 st.markdown("""
-<div class="nav-grid" style="grid-template-columns: repeat(5, 1fr);">
+<div class="nav-grid" style="grid-template-columns: repeat(6, 1fr);">
     <div class="nav-card">
         <div class="icon">📊</div>
         <div class="title">Data Collection</div>
@@ -205,6 +206,11 @@ st.markdown("""
         <div class="icon">🗄️</div>
         <div class="title">Database Viewer</div>
         <div class="desc">Inspeksi database live, pencarian, dan unduh CSV/Excel/JSON/SQL</div>
+    </div>
+    <div class="nav-card">
+        <div class="icon">🛡️</div>
+        <div class="title">Fraud Risk Screening</div>
+        <div class="desc">Skor CFRSI 3-lapis (Rule, Stat, ML) & 5-tier klasifikasi risiko</div>
     </div>
 </div>
 """, unsafe_allow_html=True)

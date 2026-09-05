@@ -11,6 +11,7 @@
 *.pfx
 credentials.json
 client_secret*.json
+.claude/*
 
 # ==========================================
 # 2. Folder Workfiles & Data Sementara

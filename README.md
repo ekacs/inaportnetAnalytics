@@ -23,11 +23,13 @@ inaportnetAnalytics/
 │   ├── 01_data_preprocessing.py
 │   ├── 02_descriptive_stats.py
 │   ├── 03_port_performance_calculation.py
-│   └── 04_quadrant_analysis.py
+│   ├── 04_quadrant_analysis.py
+│   └── 05_fraud_risk_analysis.py  # CFRSI & Multi-layer Fraud Risk Screening
 │
 ├── outputs/                       # Generated charts and visualizations
 │
 ├── papers/                        # Research papers and reports
+│   └── Inaportnet-update.pdf      # Wijaya & Setyawan (2026) CFRSI Paper
 │
 ├── inaportnetDashboard/           # Interactive Streamlit Web Dashboard
 │   ├── app.py                     # Main home page
@@ -39,18 +41,33 @@ inaportnetAnalytics/
 │   │   ├── database.py            # Supabase CRUD operations
 │   │   ├── scraper.py             # Web scraping functions
 │   │   ├── preprocessing.py       # Data preprocessing
-│   │   ├── analysis.py            # Performance index calculations
-│   │   └── visualization.py       # Plotly interactive charts
+│   │   ├── analysis.py            # Performance index & CFRSI calculations
+│   │   └── visualization.py       # Plotly interactive charts & CFRSI plots
 │   ├── pages/
 │   │   ├── 1_📊_Data_Collection.py
 │   │   ├── 2_🚦_Traffic_Overview.py
 │   │   ├── 3_📋_Service_Performance.py
 │   │   ├── 4_🗺️_Port_Classification.py
-│   │   └── 5_🗄️_Database_Viewer.py
+│   │   ├── 5_🗄️_Database_Viewer.py
+│   │   └── 6_🛡️_Fraud_Risk_Screening.py  # CFRSI & Anti-Fraud Governance EWS
 │   └── venv/                      # Python virtual environment
 │
 └── README.md
 ```
+
+# Research Paper & CFRSI Framework
+
+This project integrates the research framework from:
+> **"Toward Data-Driven Anti-Fraud Governance: Anomaly Detection and Composite Risk Scoring for Port-Level Oversight in Digital Maritime Services"**
+> *Rifki Wijaya & Eka C. Setyawan (2026)*
+
+### 🛡️ Composite Fraud Risk Screening Index (CFRSI)
+The framework integrates 3 complementary analytical perspectives:
+1. **Rule-Based Engine**: 5 Red Flag rules (Quick Approval $<10$s, Long Duration $>8$h, Low Oversight `00-04`, GT Manipulation, Same Vessel across 2 ports $<2$h).
+2. **Statistical Engine**: OLS Regression & Modified Z-Score residual threshold ($Z_i \le -2.5$).
+3. **Machine Learning Engine**: Unsupervised Isolation Forest multidimensional anomaly detection.
+4. **CFRSI Aggregation**: Equal-weighted composite score normalized with Min-Max scaling `[0.10, 1.00]`.
+5. **5-Tier Risk Classification**: Percentile-based & Fixed-scale ordinal risk levels (Sangat Rendah to Sangat Tinggi).
 
 # Running the Dashboard
 

@@ -34,6 +34,7 @@ flowchart TD
         D1["📊 Traffic Analysis Engine<br>- Share Volume PKK per Pelabuhan<br>- Tren Kuartal, Bulan, Hari, Jam"]
         D2["📋 Service Performance Engine<br>- SLA Compliance Rate (≤ 30 menit)<br>- Distribusi Kategori Waktu Response<br>- Identification Top 10 Terlama"]
         D3["🗺️ Port Classification Engine<br>- Normalisasi Winsorized Min-Max (P5-P95)<br>- Hitung 4 Sub-Indeks Performa<br>- Composite Performance Index (CPI)<br>- 4-Quadrant Classification Matrix"]
+        D4["🛡️ Fraud Risk Screening Engine (CFRSI)<br>- Deteksi 5 Rule-Based Red Flags<br>- Modified Z-Score (OLS Residuals ≤ -2.5)<br>- Isolation Forest (Anomali Multidimensi)<br>- Min-Max Scaling [0.10 - 1.00] & Equal Weighting<br>- Klasifikasi 5 Tier (Percentile vs Fixed)"]
     end
 
     %% Node Halaman Interface User
@@ -43,6 +44,7 @@ flowchart TD
         E2["🚦 Traffic Overview Page<br>KPI Cards & Multi-Dimension Trends"]
         E3["📋 Service Performance Page<br>SLA Threshold Slider & Histograms"]
         E4["🗺️ Port Classification Page<br>Interactive Scatter Plot & Rankings"]
+        E5["🛡️ Fraud Risk Screening Page<br>Skor CFRSI, Red Flags & Tata Kelola Anti-Fraud"]
     end
 
     %% Alur Hubungan Data
@@ -57,10 +59,12 @@ flowchart TD
     C1 --> D1
     C1 --> D2
     C1 --> D3
+    C1 --> D4
 
     D1 --> E2
     D2 --> E3
     D3 --> E4
+    D4 --> E5
     C1 --> E0
     A1 & A2 & A3 --> E1
 
@@ -69,8 +73,8 @@ flowchart TD
     classDef accent fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:1px;
     classDef success fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:1px;
 
-    class E0,E1,E2,E3,E4 primary;
-    class D1,D2,D3 secondary;
+    class E0,E1,E2,E3,E4,E5 primary;
+    class D1,D2,D3,D4 secondary;
     class C1,C2 success;
     class A1,A2,A3 accent;
 ```
