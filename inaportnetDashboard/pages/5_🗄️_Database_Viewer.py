@@ -11,6 +11,7 @@ from modules.database import (
     get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
 )
 from modules.theme import render_theme_selector
+from modules.scraper import load_port_reference
 
 st.set_page_config(
     page_title="Database Viewer · Inaportnet",
