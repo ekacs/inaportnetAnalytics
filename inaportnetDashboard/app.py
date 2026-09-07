@@ -175,45 +175,118 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     st.markdown("<br>", unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────
-# Navigation cards
+# Navigation cards (clickable)
 # ──────────────────────────────────────────────────────────────
 st.markdown("### 📌 Navigasi Halaman")
+
+# CSS khusus untuk nav cards yang bisa diklik
 st.markdown("""
-<div class="nav-grid" style="grid-template-columns: repeat(6, 1fr);">
-    <div class="nav-card">
-        <div class="icon">📊</div>
-        <div class="title">Data Collection</div>
-        <div class="desc">Scraping, upload data, load dari Supabase, dan ekspor</div>
-    </div>
-    <div class="nav-card">
-        <div class="icon">🚦</div>
-        <div class="title">Traffic Overview</div>
-        <div class="desc">Volume, tren per kuartal, bulan, hari, dan jam</div>
-    </div>
-    <div class="nav-card">
-        <div class="icon">📋</div>
-        <div class="title">Service Performance</div>
-        <div class="desc">Distribusi waktu approval, SLA compliance, dan tren</div>
-    </div>
-    <div class="nav-card">
-        <div class="icon">🗺️</div>
-        <div class="title">Port Classification</div>
-        <div class="desc">Analisis kuadran dan ranking composite index</div>
-    </div>
-    <div class="nav-card">
-        <div class="icon">🗄️</div>
-        <div class="title">Database Viewer</div>
-        <div class="desc">Inspeksi database live, pencarian, dan unduh CSV/Excel/JSON/SQL</div>
-    </div>
-    <div class="nav-card">
-        <div class="icon">🛡️</div>
-        <div class="title">Fraud Risk Screening</div>
-        <div class="desc">Skor CFRSI 3-lapis (Rule, Stat, ML) & 5-tier klasifikasi risiko</div>
-    </div>
-</div>
+<style>
+/* ── Nav Cards: setiap kolom berisi card + link ── */
+div[data-testid="stColumn"] .nav-card-wrap {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.4rem 1rem 0.4rem;
+    text-align: center;
+    transition: all 0.22s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    cursor: pointer;
+}
+div[data-testid="stColumn"] .nav-card-wrap:hover {
+    border-color: #2471a3;
+    box-shadow: 0 6px 20px rgba(36,113,163,0.16);
+    transform: translateY(-3px);
+}
+.nav-card-icon  { font-size: 2.2rem; line-height: 1; }
+.nav-card-title { font-weight: 700; color: #1a4a7a; font-size: 0.92rem; margin: 0.5rem 0 0.2rem; }
+.nav-card-desc  { color: #6c757d; font-size: 0.76rem; line-height: 1.4; margin-bottom: 0.6rem; }
+
+/* page_link di dalam card: tampak sebagai "Buka" kecil di bawah desc */
+div[data-testid="stColumn"] [data-testid="stPageLink"] {
+    margin-top: 0 !important;
+}
+div[data-testid="stColumn"] a[data-testid="stPageLink-NavLink"] {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    background: #eaf3fb !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 4px 0 !important;
+    margin: 0 0 0.5rem !important;
+    color: #1a4a7a !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    width: 100% !important;
+    transition: background 0.18s !important;
+}
+div[data-testid="stColumn"] a[data-testid="stPageLink-NavLink"]:hover {
+    background: #1a4a7a !important;
+    color: white !important;
+}
+div[data-testid="stColumn"] a[data-testid="stPageLink-NavLink"] p {
+    font-size: 0.78rem !important;
+    margin: 0 !important;
+    color: inherit !important;
+}
+</style>
 """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+nav_pages = [
+    {
+        "page":  "pages/1_📊_Data_Collection.py",
+        "icon":  "📊",
+        "title": "Data Collection",
+        "desc":  "Scraping, upload data, load dari database, dan ekspor",
+    },
+    {
+        "page":  "pages/2_🚦_Traffic_Overview.py",
+        "icon":  "🚦",
+        "title": "Traffic Overview",
+        "desc":  "Volume, tren per kuartal, bulan, hari, dan jam",
+    },
+    {
+        "page":  "pages/3_📋_Service_Performance.py",
+        "icon":  "📋",
+        "title": "Service Performance",
+        "desc":  "Distribusi waktu approval, SLA compliance, dan tren",
+    },
+    {
+        "page":  "pages/4_🗺️_Port_Classification.py",
+        "icon":  "🗺️",
+        "title": "Port Classification",
+        "desc":  "Analisis kuadran dan ranking composite index",
+    },
+    {
+        "page":  "pages/5_🗄️_Database_Viewer.py",
+        "icon":  "🗄️",
+        "title": "Database Viewer",
+        "desc":  "Inspeksi database live, pencarian, dan unduh CSV/Excel/JSON/SQL",
+    },
+    {
+        "page":  "pages/6_🛡️_Fraud_Risk_Screening.py",
+        "icon":  "🛡️",
+        "title": "Fraud Risk Screening",
+        "desc":  "Skor CFRSI 3-lapis (Rule, Stat, ML) & 5-tier klasifikasi risiko",
+    },
+]
+
+cols = st.columns(6, gap="small")
+for col, nav in zip(cols, nav_pages):
+    with col:
+        # Visual card content
+        st.markdown(f"""
+        <div class="nav-card-wrap">
+            <div class="nav-card-icon">{nav["icon"]}</div>
+            <div class="nav-card-title">{nav["title"]}</div>
+            <div class="nav-card-desc">{nav["desc"]}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        # Clickable page_link shown as "→ Buka" button below the card content
+        st.page_link(nav["page"], label="→ Buka", use_container_width=True)
+
 
 # ──────────────────────────────────────────────────────────────
 # How to use
