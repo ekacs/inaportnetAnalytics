@@ -184,29 +184,41 @@ with tab_scrape:
             st.error("❌ Pilih minimal satu jenis angkutan.")
         else:
             # ── Progress containers ──
-            status_txt   = st.empty()
-            progress_bar = st.progress(0)
-            result_area  = st.empty()
+            status_txt     = st.empty()
+            progress_bar   = st.progress(0)
+            info_cols      = st.empty()
+            result_area    = st.empty()
 
             # ── List log error untuk popup ──
             scraping_errors = []
 
-            # ── Callbacks ──
-            def cb_progress1(cur, tot):
-                progress_bar.progress(int(cur / tot * 50))  # Stage 1: 0–50%
+            # ── Callbacks (dict-based progress) ──
+            def cb_progress1(info):
+                progress_bar.progress(info["percent"] / 200)  # Stage 1: 0–50%
 
             def cb_status1(msg):
                 status_txt.info(f"**Stage 1 — Daftar PKK**\n\n{msg}")
 
-            def cb_progress2(cur, tot):
-                progress_bar.progress(50 + int(cur / tot * 50))  # Stage 2: 50–100%
+            def cb_progress2(info):
+                base = info.get("percent", 0)
+                progress_bar.progress(0.5 + base / 200)  # Stage 2: 50–100%
+                # Tampilkan info box di bawah progress bar
+                info_cols.markdown(
+                    f'<div style="display:flex; gap:1.2rem; flex-wrap:wrap; margin-top:0.5rem; font-size:0.85rem;">'
+                    f'<span style="color:#1a4a7a; font-weight:600;">✅ {info.get("success", 0):,} berhasil</span>'
+                    f'<span style="color:#e74c3c; font-weight:600;">❌ {info.get("errors", 0)} gagal</span>'
+                    f'<span style="color:#6c757d;">⏱ {info.get("elapsed_str", "-")} berlalu</span>'
+                    f'<span style="color:#6c757d;">⏳ Sisa ~{info.get("eta_str", "-")}</span>'
+                    f'<span style="color:#6c757d;">📦 {info.get("pkk_number", "")}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
             def cb_status2(msg):
                 status_txt.info(f"**Stage 2 — Waktu Approval**\n\n{msg}")
 
             def cb_error(err_msg):
                 scraping_errors.append(err_msg)
-                # Tampilkan popup toast langsung per error
                 st.toast(f"⚠️ {err_msg}")
 
             # ── Jalankan scraping ──
@@ -226,6 +238,7 @@ with tab_scrape:
 
             progress_bar.empty()
             status_txt.empty()
+            info_cols.empty()
 
             # Jika ada log error selama proses, tampilkan popup toast rangkuman
             if scraping_errors:
