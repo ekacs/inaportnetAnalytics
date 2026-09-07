@@ -406,6 +406,30 @@ def plot_quadrant_scatter(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def plot_performance_ranking(df: pd.DataFrame, top_n: int = 20) -> go.Figure:
+    if df.empty or "composite_index" not in df.columns:
+        return go.Figure()
+
+    port_col = "port" if "port" in df.columns else ("port_code" if "port_code" in df.columns else df.columns[0])
+    df_sorted = df.sort_values("composite_index", ascending=True).tail(top_n)
+
+    quadrant_colors = {
+        "Benchmark Port":  "#27ae60",
+        "Efficient Port":  "#2980b9",
+        "Developing Port": "#f39c12",
+        "Congested Port":  "#e74c3c",
+    }
+    colors_list = [quadrant_colors.get(str(q), "#95a5a6") for q in df_sorted["quadrant"]] if "quadrant" in df_sorted.columns else [COLORS["secondary"]] * len(df_sorted)
+
+    fig = go.Figure(go.Bar(
+        x=df_sorted["composite_index"],
+        y=df_sorted[port_col],
+        orientation="h",
+        marker_color=colors_list,
+        text=df_sorted["composite_index"].apply(lambda x: f"{x:.3f}"),
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>Composite Index: %{x:.3f}<extra></extra>",
+    ))
     _base_layout(fig, f"Ranking Top {top_n} — Composite Performance Index", height=max(420, top_n * 22))
     fig.update_xaxes(title="Composite Index (0–1)", range=[0, 1.1])
     fig.update_yaxes(title="")
