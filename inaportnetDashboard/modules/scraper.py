@@ -141,6 +141,8 @@ def scrape_pkk_list(
     progress_callback: Optional[Callable] = None,
     status_callback: Optional[Callable] = None,
     error_callback: Optional[Callable[[str], None]] = None,
+    pause_check: Optional[Callable[[], bool]] = None,
+    stop_check: Optional[Callable[[], bool]] = None,
 ) -> pd.DataFrame:
     """
     Tahap 1: Mengambil daftar nomor PKK untuk setiap kombinasi
@@ -188,6 +190,11 @@ def scrape_pkk_list(
                         f"— {info['elapsed_str']} berlalu, sisa ~{info['eta_str']}"
                     )
 
+                if stop_check and stop_check():
+                    break
+                while pause_check and pause_check():
+                    time.sleep(0.5)
+
                 url = (
                     f"{BASE_URL}/monitoring/byPort/list/"
                     f"{port}/{svc}/{year}/{month:02d}"
@@ -218,6 +225,13 @@ def scrape_pkk_list(
                 # Delay antar-request (anti-detection)
                 if current < total_iterations:
                     time.sleep(random.uniform(STAGE1_DELAY_MIN, STAGE1_DELAY_MAX))
+        
+        if stop_check and stop_check():
+            break
+    
+    if stop_check and stop_check():
+        if progress_callback:
+            progress_callback(_progress_info(current, total_iterations, start_time, error_count))
 
     # Final progress
     if progress_callback:
@@ -243,6 +257,8 @@ def scrape_approval_times(
     progress_callback: Optional[Callable] = None,
     status_callback: Optional[Callable] = None,
     error_callback: Optional[Callable[[str], None]] = None,
+    pause_check: Optional[Callable[[], bool]] = None,
+    stop_check: Optional[Callable[[], bool]] = None,
 ) -> pd.DataFrame:
     """
     Tahap 2: Mengambil waktu permohonan dan persetujuan untuk setiap nomor PKK.
@@ -291,6 +307,11 @@ def scrape_approval_times(
                 f"— {success_count} berhasil, {error_count} gagal"
             )
 
+        if stop_check and stop_check():
+            break
+        while pause_check and pause_check():
+            time.sleep(0.5)
+
         url = f"{BASE_URL}/monitoring/detail?nomor_pkk={nomor_pkk}"
         try:
             r = _request_with_retry(session, url, timeout=30)
@@ -327,7 +348,7 @@ def scrape_approval_times(
 
     # Final progress
     if progress_callback:
-        final = _progress_info(total, total, start_time, error_count)
+        final = _progress_info(total if not (stop_check and stop_check()) else idx, total, start_time, error_count)
         final["current"] = total
         final["total"] = total
         final["success"] = success_count
@@ -369,6 +390,8 @@ def run_full_scraping(
     progress_stage2: Optional[Callable] = None,
     status_stage2: Optional[Callable] = None,
     error_callback: Optional[Callable[[str], None]] = None,
+    pause_check: Optional[Callable[[], bool]] = None,
+    stop_check: Optional[Callable[[], bool]] = None,
 ) -> pd.DataFrame:
     """
     Menjalankan scraping lengkap (2 tahap) dan menggabungkan hasilnya
@@ -389,6 +412,8 @@ def run_full_scraping(
         progress_callback=progress_stage1,
         status_callback=status_stage1,
         error_callback=error_callback,
+        pause_check=pause_check,
+        stop_check=stop_check,
     )
 
     if df_pkk.empty:
@@ -400,6 +425,8 @@ def run_full_scraping(
         progress_callback=progress_stage2,
         status_callback=status_stage2,
         error_callback=error_callback,
+        pause_check=pause_check,
+        stop_check=stop_check,
     )
 
     if approval_df.empty:

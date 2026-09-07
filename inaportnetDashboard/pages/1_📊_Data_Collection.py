@@ -158,12 +158,11 @@ with tab_scrape:
 
     st.markdown('<div class="section-header">▶ Jalankan Scraping</div>', unsafe_allow_html=True)
 
-    # ── Peringatan navigasi ──────────────────────────────────────
     st.warning(
         "⚠️ **Perhatian:** Proses scraping berjalan secara sinkron di halaman ini. "
         "Jika Anda **berpindah ke halaman lain** saat scraping sedang berlangsung, "
         "proses akan **otomatis berhenti** dan data yang belum tersimpan akan hilang. "
-        "Tunggu hingga scraping selesai sebelum menavigasi.",
+        "Gunakan tombol **⏸ Pause** atau **⏹ Stop** untuk mengontrol proses.",
         icon="🚫",
     )
 
@@ -183,96 +182,133 @@ with tab_scrape:
             st.toast("❌ Pilih minimal satu jenis angkutan.", icon="⚠️")
             st.error("❌ Pilih minimal satu jenis angkutan.")
         else:
-            # ── Progress containers ──
-            status_txt     = st.empty()
-            progress_bar   = st.progress(0)
-            info_cols      = st.empty()
-            result_area    = st.empty()
+            st.session_state["scrape_paused"] = False
+            st.session_state["scrape_stopped"] = False
 
-            # ── List log error untuk popup ──
-            scraping_errors = []
+    is_scraping = st.session_state.get("scrape_stopped") is not None and not st.session_state.get("scrape_stopped", False)
+    is_paused   = st.session_state.get("scrape_paused", False)
 
-            # ── Callbacks (dict-based progress) ──
-            def cb_progress1(info):
-                progress_bar.progress(info["percent"] / 200)  # Stage 1: 0–50%
-
-            def cb_status1(msg):
-                status_txt.info(f"**Stage 1 — Daftar PKK**\n\n{msg}")
-
-            def cb_progress2(info):
-                base = info.get("percent", 0)
-                progress_bar.progress(0.5 + base / 200)  # Stage 2: 50–100%
-                # Tampilkan info box di bawah progress bar
-                info_cols.markdown(
-                    f'<div style="display:flex; gap:1.2rem; flex-wrap:wrap; margin-top:0.5rem; font-size:0.85rem;">'
-                    f'<span style="color:#1a4a7a; font-weight:600;">✅ {info.get("success", 0):,} berhasil</span>'
-                    f'<span style="color:#e74c3c; font-weight:600;">❌ {info.get("errors", 0)} gagal</span>'
-                    f'<span style="color:#6c757d;">⏱ {info.get("elapsed_str", "-")} berlalu</span>'
-                    f'<span style="color:#6c757d;">⏳ Sisa ~{info.get("eta_str", "-")}</span>'
-                    f'<span style="color:#6c757d;">📦 {info.get("pkk_number", "")}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-
-            def cb_status2(msg):
-                status_txt.info(f"**Stage 2 — Waktu Approval**\n\n{msg}")
-
-            def cb_error(err_msg):
-                scraping_errors.append(err_msg)
-                st.toast(f"⚠️ {err_msg}")
-
-            # ── Jalankan scraping ──
-            with st.spinner("Scraping sedang berjalan..."):
-                df_raw = run_full_scraping(
-                    port_codes=selected_port_codes,
-                    angkutan=angkutan_codes,
-                    year=year_sel,
-                    months=months_list,
-                    port_ref_path="data/port_code.xlsx",
-                    progress_stage1=cb_progress1,
-                    status_stage1=cb_status1,
-                    progress_stage2=cb_progress2,
-                    status_stage2=cb_status2,
-                    error_callback=cb_error,
-                )
-
-            progress_bar.empty()
-            status_txt.empty()
-            info_cols.empty()
-
-            # Jika ada log error selama proses, tampilkan popup toast rangkuman
-            if scraping_errors:
-                st.toast(f"⚠️ Terdapat {len(scraping_errors)} peringatan/error selama proses scraping.", icon="🚨")
-                with st.expander(f"⚠️ Detail Log Error Scraping ({len(scraping_errors)} item)"):
-                    for err in scraping_errors:
-                        st.markdown(f"- `{err}`")
-
-            if df_raw.empty:
-                st.warning("⚠️ Tidak ada data yang berhasil diambil. Periksa koneksi atau parameter.")
+    if is_scraping:
+        col_pb, col_pause, col_stop = st.columns([6, 1, 1])
+        with col_pause:
+            if is_paused:
+                if st.button("▶ Play", use_container_width=True):
+                    st.session_state["scrape_paused"] = False
             else:
-                # Preprocessing & Deduplikasi
-                with st.spinner("Memproses & mendeteksi duplikasi data..."):
-                    df_processed = preprocess(df_raw)
-                    df_processed, n_dups = deduplicate_dataframe(df_processed)
+                if st.button("⏸ Pause", use_container_width=True):
+                    st.session_state["scrape_paused"] = True
+        with col_stop:
+            if st.button("⏹ Stop", type="secondary", use_container_width=True):
+                st.session_state["scrape_stopped"] = True
 
-                st.session_state["df"] = df_processed
-                if n_dups > 0:
-                    st.info(f"🧹 **{n_dups:,} record duplikat** terdeteksi dan dibersihkan dari hasil scraping.")
-                st.success(f"✅ **{len(df_processed):,} record bersih** berhasil diambil dan diproses.")
-                st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
-                result_area.dataframe(df_processed.head(10), width="stretch")
+        scrape_status  = st.empty()
+        scrape_control = st.empty()
+        scraping_errors = []
 
-                # Simpan ke Database (Supabase / SQLite)
-                if save_to_db:
-                    db_target = "Supabase Cloud" if is_supabase_connected() else "SQLite (Lokal)"
-                    with st.spinner(f"Menyimpan ke {db_target}..."):
-                        res = insert_pkk_records(df_processed)
-                    if res["success"]:
-                        st.success(f"💾 **{res['inserted']:,} record** tersimpan ke {db_target}.")
-                        st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
-                    else:
-                        st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
-                        st.toast(f"❌ Gagal simpan DB: {res['error']}", icon="❌")
+        def cb_progress1(info):
+            if st.session_state.get("scrape_stopped"):
+                return
+            pct = info["percent"] / 200
+            paused_badge = " ⏸ **DIJEDA**" if st.session_state.get("scrape_paused") else ""
+            scrape_control.progress(pct)
+            scrape_status.info(
+                f"**Stage 1 — Daftar PKK{paused_badge}**\n\n"
+                f"[{info.get('current', '?')}/{info.get('total', '?')}] "
+                f"✅ {info.get('errors', 0)} error — "
+                f"⏱ {info.get('elapsed_str', '-')} berlalu, sisa ~{info.get('eta_str', '-')}"
+            )
+
+        def cb_status1(msg):
+            if st.session_state.get("scrape_stopped"):
+                return
+            scrape_status.info(f"**Stage 1 — Daftar PKK**\n\n{msg}")
+
+        def cb_progress2(info):
+            if st.session_state.get("scrape_stopped"):
+                return
+            pct = 0.5 + info.get("percent", 0) / 200
+            paused_badge = " ⏸ **DIJEDA**" if st.session_state.get("scrape_paused") else ""
+            scrape_control.progress(pct)
+            scrape_status.info(
+                f"**Stage 2 — Waktu Approval{paused_badge}**\n\n"
+                f"[{info.get('current', '?')}/{info.get('total', '?')}] "
+                f"✅ {info.get('success', 0):,} berhasil — ❌ {info.get('errors', 0)} gagal\n"
+                f"⏱ {info.get('elapsed_str', '-')} berlalu — Sisa ~{info.get('eta_str', '-')} "
+                f"— 📦 {info.get('pkk_number', '')}"
+            )
+
+        def cb_status2(msg):
+            if st.session_state.get("scrape_stopped"):
+                return
+            scrape_status.info(f"**Stage 2 — Waktu Approval**\n\n{msg}")
+
+        def cb_error(err_msg):
+            scraping_errors.append(err_msg)
+            st.toast(f"⚠️ {err_msg}")
+
+        df_raw = run_full_scraping(
+            port_codes=selected_port_codes,
+            angkutan=angkutan_codes,
+            year=year_sel,
+            months=months_list,
+            port_ref_path="data/port_code.xlsx",
+            progress_stage1=cb_progress1,
+            status_stage1=cb_status1,
+            progress_stage2=cb_progress2,
+            status_stage2=cb_status2,
+            error_callback=cb_error,
+            pause_check=lambda: st.session_state.get("scrape_paused", False),
+            stop_check=lambda: st.session_state.get("scrape_stopped", False),
+        )
+
+        if scraping_errors:
+            st.toast(f"⚠️ Terdapat {len(scraping_errors)} peringatan/error selama proses scraping.", icon="🚨")
+            with st.expander(f"⚠️ Detail Log Error Scraping ({len(scraping_errors)} item)"):
+                for err in scraping_errors:
+                    st.markdown(f"- `{err}`")
+
+        was_stopped  = st.session_state.get("scrape_stopped", False)
+        was_paused   = st.session_state.get("scrape_paused", False)
+
+        if was_stopped and df_raw is not None and not df_raw.empty:
+            scrape_status.warning("⏹ **Scraping dihentikan.** Data yang berhasil diambil sebelum dihentikan:")
+        elif was_paused:
+            scrape_status.info("⏸ Scraping selesai dalam status dijeda.")
+        else:
+            scrape_status.success("✅ Scraping selesai!")
+
+        scrape_control.empty()
+
+        if df_raw is not None and not df_raw.empty and not was_paused:
+            with st.spinner("Memproses & mendeteksi duplikasi data..."):
+                df_processed = preprocess(df_raw)
+                df_processed, n_dups = deduplicate_dataframe(df_processed)
+
+            st.session_state["df"] = df_processed
+            if n_dups > 0:
+                st.info(f"🧹 **{n_dups:,} record duplikat** terdeteksi dan dibersihkan dari hasil scraping.")
+            st.success(f"✅ **{len(df_processed):,} record bersih** berhasil diambil dan diproses.")
+            st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
+            st.dataframe(df_processed.head(10), width="stretch")
+
+            if save_to_db:
+                db_target = "Supabase Cloud" if is_supabase_connected() else "SQLite (Lokal)"
+                with st.spinner(f"Menyimpan ke {db_target}..."):
+                    res = insert_pkk_records(df_processed)
+                if res["success"]:
+                    st.success(f"💾 **{res['inserted']:,} record** tersimpan ke {db_target}.")
+                    st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
+                else:
+                    st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
+                    st.toast(f"❌ Gagal simpan DB: {res['error']}", icon="❌")
+        elif df_raw is None or df_raw.empty:
+            if was_stopped:
+                st.warning("⚠️ Tidak ada data yang berhasil diambil sebelum dihentikan.")
+            else:
+                st.warning("⚠️ Tidak ada data yang berhasil diambil. Periksa koneksi atau parameter.")
+
+        st.session_state.pop("scrape_paused", None)
+        st.session_state.pop("scrape_stopped", None)
 
 # ────────────────────────────────────────────────────────────────
 # TAB 2 — UPLOAD FILE
