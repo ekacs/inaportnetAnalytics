@@ -158,6 +158,15 @@ with tab_scrape:
 
     st.markdown('<div class="section-header">▶ Jalankan Scraping</div>', unsafe_allow_html=True)
 
+    # ── Peringatan navigasi ──────────────────────────────────────
+    st.warning(
+        "⚠️ **Perhatian:** Proses scraping berjalan secara sinkron di halaman ini. "
+        "Jika Anda **berpindah ke halaman lain** saat scraping sedang berlangsung, "
+        "proses akan **otomatis berhenti** dan data yang belum tersimpan akan hilang. "
+        "Tunggu hingga scraping selesai sebelum menavigasi.",
+        icon="🚫",
+    )
+
     save_to_db = st.checkbox("💾 Simpan otomatis ke Database (Supabase / SQLite) setelah scraping selesai", value=True)
 
     btn_scrape = st.button(
