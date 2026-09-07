@@ -67,6 +67,7 @@ st.markdown("""
 
     [data-testid="stSidebar"] { background: #0f2d52; }
     [data-testid="stSidebar"] * { color: white !important; }
+    [data-testid="stSidebarNav"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 

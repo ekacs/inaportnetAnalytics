@@ -97,9 +97,10 @@ st.markdown("""
     [data-testid="stSidebar"] .stMarkdown p { color: rgba(255,255,255,0.7) !important; }
     [data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.15); }
 
-    /* Hide Streamlit default footer */
+    /* Hide Streamlit default footer and default navigation */
     footer { visibility: hidden; }
     #MainMenu { visibility: hidden; }
+    [data-testid="stSidebarNav"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 

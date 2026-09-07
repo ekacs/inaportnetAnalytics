@@ -29,7 +29,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .q-developing{ background:#fdebd0; color:#784212; }
 .q-congested { background:#fadbd8; color:#922b21; }
 .legend-box  { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; font-size:0.88rem; }
-footer{visibility:hidden;} #MainMenu{visibility:hidden;}
+footer{visibility:hidden;} #MainMenu{visibility:hidden;} [data-testid="stSidebarNav"]{display:none !important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -37,12 +37,14 @@ footer{visibility:hidden;} #MainMenu{visibility:hidden;}
 with st.sidebar:
     st.markdown("### 🚢 Inaportnet Analytics")
     st.markdown("---")
+    st.markdown("**Navigasi**")
     st.page_link("app.py",                               label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
     st.page_link("pages/2_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
     st.page_link("pages/3_📋_Service_Performance.py",    label="📋 Service Performance")
     st.page_link("pages/4_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
     st.page_link("pages/5_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
 
     df_sess = st.session_state.get("df", pd.DataFrame())

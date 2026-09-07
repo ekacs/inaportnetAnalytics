@@ -9,3 +9,7 @@ font = "sans serif"
 [server]
 maxUploadSize = 500
 
+[client]
+showSidebarNavigation = false
+
+
