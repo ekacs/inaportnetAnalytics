@@ -10,6 +10,7 @@ Anti-detection:
   - Retry dengan exponential backoff (max 3 attempt)
 """
 
+import os
 import requests
 import pandas as pd
 import random
@@ -18,6 +19,8 @@ from io import StringIO
 from typing import List, Callable, Optional, Dict, Any
 
 BASE_URL = "https://monitoring-inaportnet.dephub.go.id"
+_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+_DATA_DIR = os.path.join(os.path.dirname(_MODULE_DIR), "data")
 
 # ── User-Agent rotation (browser-like) ────────────────────────
 _USER_AGENTS = [
@@ -364,18 +367,15 @@ def scrape_approval_times(
 # PORT REFERENCE & FULL PIPELINE
 # ══════════════════════════════════════════════════════════════
 
-def load_port_reference(filepath: str = "data/port_code.xlsx") -> pd.DataFrame:
-    """
-    Memuat referensi kode dan nama pelabuhan dari file Excel.
-
-    Returns
-    -------
-    pd.DataFrame : kolom minimal [KODE, PELABUHAN]
-    """
+def load_port_reference(filepath: str = None) -> pd.DataFrame:
+    if filepath is None:
+        filepath = os.path.join(_DATA_DIR, "port_code.xlsx")
+    elif not os.path.isabs(filepath):
+        filepath = os.path.join(_DATA_DIR, os.path.basename(filepath))
     try:
         df = pd.read_excel(filepath)
         return df
-    except Exception as e:
+    except Exception:
         return pd.DataFrame(columns=["KODE", "PELABUHAN"])
 
 
@@ -384,7 +384,7 @@ def run_full_scraping(
     angkutan: List[str],
     year: int,
     months: List[int],
-    port_ref_path: str = "data/port_code.xlsx",
+    port_ref_path: str = None,
     progress_stage1: Optional[Callable] = None,
     status_stage1: Optional[Callable] = None,
     progress_stage2: Optional[Callable] = None,
