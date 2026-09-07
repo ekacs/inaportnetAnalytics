@@ -12,7 +12,7 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
-    deduplicate_dataframe
+    is_supabase_connected, get_db_status_info, deduplicate_dataframe
 )
 from modules.theme import render_theme_selector
 
@@ -68,12 +68,9 @@ with st.sidebar:
     st.page_link("pages/5_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
-    db_ok = is_connected()
+    db_info = get_db_status_info()
     st.markdown("**Status Database**")
-    if db_ok:
-        st.success("✅ Supabase Terhubung")
-    else:
-        st.warning("⚠️ Supabase Tidak Terhubung")
+    st.success(f"{db_info['label']}")
 
     if "df" in st.session_state and not st.session_state["df"].empty:
         st.markdown("**Data Sesi**")
@@ -103,7 +100,7 @@ port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} 
 tab_scrape, tab_upload, tab_supabase, tab_export = st.tabs([
     "🌐 Scraping",
     "📁 Upload File",
-    "🗄️ Load dari Supabase",
+    "🗄️ Load dari Database",
     "💾 Ekspor Data",
 ])
 
@@ -161,7 +158,7 @@ with tab_scrape:
 
     st.markdown('<div class="section-header">▶ Jalankan Scraping</div>', unsafe_allow_html=True)
 
-    save_to_db = st.checkbox("💾 Simpan otomatis ke Supabase setelah scraping selesai", value=db_ok)
+    save_to_db = st.checkbox("💾 Simpan otomatis ke Database (Supabase / SQLite) setelah scraping selesai", value=True)
 
     btn_scrape = st.button(
         "🚀 Mulai Scraping",
@@ -243,18 +240,17 @@ with tab_scrape:
                 st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
                 result_area.dataframe(df_processed.head(10), width="stretch")
 
-                # Simpan ke Supabase
-                if save_to_db and db_ok:
-                    with st.spinner("Menyimpan ke Supabase..."):
+                # Simpan ke Database (Supabase / SQLite)
+                if save_to_db:
+                    db_target = "Supabase Cloud" if is_supabase_connected() else "SQLite (Lokal)"
+                    with st.spinner(f"Menyimpan ke {db_target}..."):
                         res = insert_pkk_records(df_processed)
                     if res["success"]:
-                        st.success(f"💾 **{res['inserted']:,} record** tersimpan ke Supabase.")
-                        st.toast(f"💾 {res['inserted']:,} record tersimpan ke Supabase.", icon="✅")
+                        st.success(f"💾 **{res['inserted']:,} record** tersimpan ke {db_target}.")
+                        st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
                     else:
-                        st.error(f"❌ Gagal menyimpan ke Supabase: {res['error']}")
+                        st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
                         st.toast(f"❌ Gagal simpan DB: {res['error']}", icon="❌")
-                elif save_to_db and not db_ok:
-                    st.warning("⚠️ Supabase tidak terhubung. Data hanya tersimpan di sesi ini.")
 
 # ────────────────────────────────────────────────────────────────
 # TAB 2 — UPLOAD FILE
@@ -352,7 +348,7 @@ with tab_upload:
                 st.info(validation["message"])
                 col_u1, col_u2 = st.columns(2)
                 with col_u1:
-                    save_upload_db = st.checkbox("💾 Simpan ke Supabase", value=db_ok, key="save_upload")
+                    save_upload_db = st.checkbox("💾 Simpan ke Database (Supabase / SQLite)", value=True, key="save_upload")
                 with col_u2:
                     st.markdown("")
 
@@ -385,17 +381,18 @@ with tab_upload:
                         st.info(f"🧹 **{n_dups:,} record duplikat** dibersihkan dari file.")
                     st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
-                    # Step 2: Supabase Storage Progress (Batch size 2,500 untuk kecepatan transfer)
-                    if save_upload_db and db_ok:
+                    # Step 2: Database Storage Progress
+                    if save_upload_db:
                         db_status = st.empty()
                         db_progress = st.progress(0)
+                        db_target = "Supabase Cloud" if is_supabase_connected() else "SQLite (Lokal)"
                         
                         tot_recs = len(df_final)
                         def db_progress_cb(cur, tot):
                             pct = int(cur / tot * 100) if tot > 0 else 0
                             db_progress.progress(pct)
                             db_status.info(
-                                f"💾 **Menyimpan ke Supabase:** {cur:,} / {tot:,} record ({pct}%) "
+                                f"💾 **Menyimpan ke {db_target}:** {cur:,} / {tot:,} record ({pct}%) "
                                 f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 3000, 1))} detik"
                             )
 
@@ -405,10 +402,10 @@ with tab_upload:
                         db_progress.empty()
 
                         if res["success"]:
-                            st.success(f"💾 **{res['inserted']:,} record** berhasil tersimpan ke Supabase.")
-                            st.toast(f"💾 {res['inserted']:,} record tersimpan ke Supabase.", icon="✅")
+                            st.success(f"💾 **{res['inserted']:,} record** berhasil tersimpan ke {db_target}.")
+                            st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
                         else:
-                            st.error(f"❌ Gagal menyimpan ke Supabase: {res['error']}")
+                            st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
 
         except MemoryError:
             st.error(
@@ -422,55 +419,48 @@ with tab_upload:
 # TAB 3 — LOAD DARI SUPABASE
 # ────────────────────────────────────────────────────────────────
 with tab_supabase:
-    st.markdown('<div class="section-header">🗄️ Muat Data dari Supabase</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🗄️ Muat Data dari Database</div>', unsafe_allow_html=True)
+    db_info = get_db_status_info()
+    st.info(f"ℹ️ **Database Aktif:** {db_info['label']}")
 
-    if not is_connected():
-        st.error("❌ Supabase tidak terhubung. Isi kredensial di `.streamlit/secrets.toml`.")
-        st.code(
-            'SUPABASE_URL = "https://xxxx.supabase.co"\nSUPABASE_KEY = "your-anon-key"',
-            language="toml"
+    col_db1, col_db2, col_db3 = st.columns(3)
+
+    with col_db1:
+        year_db = st.selectbox("📅 Tahun", [2025, 2024], key="year_db")
+
+    with col_db2:
+        angkutan_db = st.multiselect(
+            "🚢 Jenis Angkutan",
+            ["dn — Domestik", "ln — Luar Negeri"],
+            default=["dn — Domestik", "ln — Luar Negeri"],
+            key="angkutan_db",
         )
-    else:
-        st.success("✅ Koneksi Supabase aktif.")
+        angkutan_db_codes = [x.split(" — ")[0] for x in angkutan_db]
 
-        col_db1, col_db2, col_db3 = st.columns(3)
+    with col_db3:
+        filter_port_db = st.multiselect(
+            "🏗️ Filter Pelabuhan (opsional)",
+            options=port_labels,
+            placeholder="Kosongkan = semua pelabuhan",
+            key="port_db",
+        )
+        filter_codes_db = [port_code_of[lbl] for lbl in filter_port_db if lbl in port_code_of]
 
-        with col_db1:
-            year_db = st.selectbox("📅 Tahun", [2025, 2024], key="year_db")
-
-        with col_db2:
-            angkutan_db = st.multiselect(
-                "🚢 Jenis Angkutan",
-                ["dn — Domestik", "ln — Luar Negeri"],
-                default=["dn — Domestik", "ln — Luar Negeri"],
-                key="angkutan_db",
+    if st.button("📥 Muat dari Database", type="primary", width="stretch"):
+        with st.spinner(f"Mengambil data dari {db_info['short_label']}..."):
+            df_db = fetch_pkk_records(
+                port_codes=filter_codes_db if filter_codes_db else None,
+                year=year_db,
+                angkutan=angkutan_db_codes if len(angkutan_db_codes) < 2 else None,
             )
-            angkutan_db_codes = [x.split(" — ")[0] for x in angkutan_db]
 
-        with col_db3:
-            filter_port_db = st.multiselect(
-                "🏗️ Filter Pelabuhan (opsional)",
-                options=port_labels,
-                placeholder="Kosongkan = semua pelabuhan",
-                key="port_db",
-            )
-            filter_codes_db = [port_code_of[lbl] for lbl in filter_port_db if lbl in port_code_of]
-
-        if st.button("📥 Muat dari Supabase", type="primary", width="stretch"):
-            with st.spinner("Mengambil data dari Supabase (mungkin memerlukan beberapa saat)..."):
-                df_db = fetch_pkk_records(
-                    port_codes=filter_codes_db if filter_codes_db else None,
-                    year=year_db,
-                    angkutan=angkutan_db_codes if len(angkutan_db_codes) < 2 else None,
-                )
-
-            if df_db.empty:
-                st.warning("⚠️ Tidak ada data ditemukan dengan filter tersebut.")
-            else:
-                st.session_state["df"] = df_db
-                st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari Supabase.")
-                with st.expander("🔍 Preview Data"):
-                    st.dataframe(df_db.head(20), width="stretch")
+        if df_db.empty:
+            st.warning("⚠️ Tidak ada data ditemukan di database dengan filter tersebut.")
+        else:
+            st.session_state["df"] = df_db
+            st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari {db_info['short_label']}.")
+            with st.expander("🔍 Preview Data"):
+                st.dataframe(df_db.head(20), width="stretch")
 
 # ────────────────────────────────────────────────────────────────
 # TAB 4 — EKSPOR DATA

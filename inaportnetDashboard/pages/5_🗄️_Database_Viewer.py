@@ -6,12 +6,10 @@ dan opsi pengunduhan data dalam berbagai format (CSV, Excel, JSON, SQL).
 
 import streamlit as st
 import pandas as pd
-import io
 from modules.database import (
-    is_connected, get_database_stats, fetch_pkk_records_paginated,
-    fetch_pkk_records, generate_sql_dump, check_and_clean_db_duplicates
+    is_connected, is_supabase_connected, get_db_status_info, get_database_stats, fetch_pkk_records_paginated,
+    get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
 )
-from modules.scraper import load_port_reference
 from modules.theme import render_theme_selector
 
 st.set_page_config(
@@ -31,11 +29,12 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .section-header {
     background: linear-gradient(90deg, #0f2d52, #1a4a7a);
     color: white;
-    padding: 0.7rem 1.2rem;
+    padding: 0.75rem 1.25rem;
     border-radius: 10px;
     font-size: 1.05rem;
     font-weight: 600;
     margin: 1.2rem 0 0.8rem;
+    box-shadow: 0 2px 6px rgba(15, 45, 82, 0.1);
 }
 .info-box {
     background: #eaf3fb;
@@ -47,7 +46,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 .metric-card {
     background: white;
-    border: 1px solid #e8ecf0;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.1rem 1rem;
     text-align: center;
@@ -75,12 +74,9 @@ with st.sidebar:
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
     
-    db_ok = is_connected()
+    db_info = get_db_status_info()
     st.markdown("**Status Database**")
-    if db_ok:
-        st.success("✅ Supabase Terhubung")
-    else:
-        st.warning("⚠️ Supabase Tidak Terhubung")
+    st.success(f"{db_info['label']}")
         
     if "df" in st.session_state and not st.session_state["df"].empty:
         st.markdown("**Data Sesi Analisis**")
@@ -88,15 +84,7 @@ with st.sidebar:
 
 # ── Header ────────────────────────────────────────────────────
 st.markdown("# 🗄️ Live Database Viewer & Downloader")
-st.markdown("Inspeksi langsung database Supabase secara real-time, lakukan pencarian/filter, dan unduh database dalam berbagai format.")
-
-if not db_ok:
-    st.error("❌ **Koneksi Supabase Belum Terkonfigurasi**")
-    st.info(
-        "Isi kredensial `SUPABASE_URL` dan `SUPABASE_KEY` di file `.streamlit/secrets.toml` "
-        "agar dapat melihat dan mengunduh database."
-    )
-    st.stop()
+st.markdown("Inspeksi langsung database (Supabase / SQLite) secara real-time, lakukan pencarian/filter, dan unduh database dalam berbagai format.")
 
 # ── Deduplication Dialog Modal ────────────────────────────────
 if hasattr(st, "dialog"):
@@ -189,11 +177,12 @@ with c3:
     </div>
     """, unsafe_allow_html=True)
 with c4:
-    st.markdown("""
+    db_server_label = "Supabase Cloud" if is_supabase_connected() else "SQLite Local"
+    st.markdown(f"""
     <div class="metric-card">
         <div class="val">Active</div>
         <div class="label">Status Server</div>
-        <div class="sub">Supabase Cloud</div>
+        <div class="sub">{db_server_label}</div>
     </div>
     """, unsafe_allow_html=True)
 

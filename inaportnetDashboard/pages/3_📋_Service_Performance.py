@@ -16,6 +16,7 @@ from modules.visualization import (
     plot_sla_trend,
 )
 from modules.theme import render_theme_selector
+from modules.database import get_db_status_info
 
 st.set_page_config(page_title="Service Performance · Inaportnet", page_icon="📋", layout="wide")
 render_theme_selector()
@@ -79,6 +80,9 @@ with st.sidebar:
         key="sla_threshold",
     )
     st.markdown("---")
+    db_info = get_db_status_info()
+    st.markdown("**Status Database**")
+    st.success(f"{db_info['label']}")
     if "df" in st.session_state and not st.session_state["df"].empty:
         st.success(f"✅ {len(st.session_state['df']):,} record")
 

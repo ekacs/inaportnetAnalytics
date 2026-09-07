@@ -11,7 +11,7 @@ Composite Risk Scoring for Port-Level Oversight in Digital Maritime Services"
 import streamlit as st
 import pandas as pd
 import numpy as np
-from modules.database import is_connected
+from modules.database import is_connected, get_db_status_info
 from modules.theme import render_theme_selector
 from modules.analysis import (
     compute_fraud_risk_analysis,
@@ -85,6 +85,10 @@ with st.sidebar:
     st.page_link("pages/4_🗺️_Port_Classification.py",           label="🗺️ Port Classification")
     st.page_link("pages/5_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",          label="🛡️ Fraud Risk Screening")
+    st.markdown("---")
+    db_info = get_db_status_info()
+    st.markdown("**Status Database**")
+    st.success(f"{db_info['label']}")
     st.markdown("---")
     st.markdown("**Metodologi Riset**")
     st.caption("Paper: Wijaya & Setyawan (2026)")

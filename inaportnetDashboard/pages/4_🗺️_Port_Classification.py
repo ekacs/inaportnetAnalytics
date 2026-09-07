@@ -11,6 +11,7 @@ from modules.analysis import (
 )
 from modules.visualization import plot_quadrant_scatter, plot_performance_ranking
 from modules.theme import render_theme_selector
+from modules.database import is_connected, get_db_status_info
 
 st.set_page_config(page_title="Port Classification · Inaportnet", page_icon="🗺️", layout="wide")
 render_theme_selector()
@@ -69,6 +70,9 @@ with st.sidebar:
 
     top_n_rank = st.slider("🏅 Top N Ranking", 5, 50, 20, 5, key="class_topn")
     st.markdown("---")
+    db_info = get_db_status_info()
+    st.markdown("**Status Database**")
+    st.success(f"{db_info['label']}")
     if not df_sess.empty:
         st.success(f"✅ {len(df_sess):,} record")
 

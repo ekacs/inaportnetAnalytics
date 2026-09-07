@@ -3,7 +3,7 @@ app.py — Halaman Utama Inaportnet Analytics Dashboard
 """
 
 import streamlit as st
-from modules.database import is_connected
+from modules.database import is_connected, get_db_status_info
 from modules.theme import render_theme_selector
 
 # ──────────────────────────────────────────────────────────────
@@ -122,11 +122,8 @@ with st.sidebar:
 
     # Status koneksi database
     st.markdown("**Status Database**")
-    db_connected = is_connected()
-    if db_connected:
-        st.markdown('<span class="status-ok">✅ Supabase Terhubung</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="status-warn">⚠️ Supabase Tidak Terhubung</span>', unsafe_allow_html=True)
+    db_info = get_db_status_info()
+    st.markdown(f'<span class="{db_info["badge_class"]}">{db_info["label"]}</span>', unsafe_allow_html=True)
 
     # Status data di sesi
     st.markdown("**Data Sesi**")

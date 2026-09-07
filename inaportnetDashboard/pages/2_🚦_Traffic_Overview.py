@@ -14,7 +14,7 @@ from modules.visualization import (
     plot_volume_donut, plot_trend_quarterly,
     plot_trend_monthly, plot_trend_daily, plot_trend_hourly,
 )
-from modules.database import is_connected
+from modules.database import is_connected, get_db_status_info
 from modules.theme import render_theme_selector
 
 st.set_page_config(page_title="Traffic Overview · Inaportnet", page_icon="🚦", layout="wide")
@@ -80,7 +80,9 @@ with st.sidebar:
         selected_angkutan = []
 
     st.markdown("---")
-    db_ok = is_connected()
+    db_info = get_db_status_info()
+    st.markdown("**Status Database**")
+    st.success(f"{db_info['label']}")
     if "df" in st.session_state and not st.session_state["df"].empty:
         st.success(f"✅ {len(st.session_state['df']):,} record")
 
