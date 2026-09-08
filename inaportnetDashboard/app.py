@@ -125,6 +125,11 @@ with st.sidebar:
     db_info = get_db_status_info()
     st.markdown(f'<span class="{db_info["badge_class"]}">{db_info["label"]}</span>', unsafe_allow_html=True)
 
+    # Tombol konfigurasi Supabase (jika belum terhubung)
+    if db_info["mode"] == "sqlite":
+        if st.button("⚙️ Konfigurasi Supabase", use_container_width=True, type="primary"):
+            st.session_state["show_supabase_modal"] = True
+
     # Status data di sesi
     st.markdown("**Data Sesi**")
     if "df" in st.session_state and not st.session_state["df"].empty:
@@ -322,8 +327,60 @@ with col_info:
     )
     st.warning(
         "⚠️ **Konfigurasi Supabase**\n\n"
-        "Isi kredensial di `.streamlit/secrets.toml` agar data dapat disimpan ke database."
+        "Untuk menyimpan data ke database cloud, buka halaman **📊 Data Collection** "
+        "→ klik **⚙️ Settings** di sidebar → masukkan **Supabase URL** dan **API Key**."
     )
+
+# ──────────────────────────────────────────────────────────────
+# Supabase Connection Modal
+# ──────────────────────────────────────────────────────────────
+if st.session_state.get("show_supabase_modal", False):
+    with st.expander("⚙️ Konfigurasi Koneksi Supabase", expanded=True):
+        st.info(
+            "Masukkan kredensial Supabase Anda. Dapatkan dari dashboard Supabase → Settings → API."
+        )
+        col1, col2 = st.columns(2)
+        with col1:
+            supabase_url = st.text_input(
+                "Supabase URL",
+                value=st.session_state.get("supabase_url", ""),
+                placeholder="https://xxxxx.supabase.co",
+            )
+        with col2:
+            supabase_key = st.text_input(
+                "Supabase Anon Key",
+                value=st.session_state.get("supabase_key", ""),
+                type="password",
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            )
+
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        with col_btn1:
+            if st.button("🔌 Hubungkan", type="primary", use_container_width=True):
+                if not supabase_url or not supabase_key:
+                    st.error("❌ URL dan Key harus diisi.")
+                else:
+                    from modules.database import set_supabase_credentials
+                    with st.spinner("Menghubungkan ke Supabase..."):
+                        if set_supabase_credentials(supabase_url, supabase_key):
+                            st.success("✅ Berhasil terhubung ke Supabase!")
+                            st.toast("✅ Supabase terhubung!", icon="✅")
+                            st.session_state["show_supabase_modal"] = False
+                            st.rerun()
+                        else:
+                            st.error("❌ Gagal terhubung. Periksa URL dan Key.")
+        with col_btn2:
+            if st.button("❌ Tutup", use_container_width=True):
+                st.session_state["show_supabase_modal"] = False
+                st.rerun()
+        with col_btn3:
+            if st.session_state.get("supabase_connected"):
+                if st.button("🔌 Putuskan", use_container_width=True):
+                    from modules.database import clear_supabase_credentials
+                    clear_supabase_credentials()
+                    st.success("✅ Koneksi diputus.")
+                    st.toast("🔌 Koneksi diputus.", icon="🔌")
+                    st.rerun()
 
 # ──────────────────────────────────────────────────────────────
 # Developer Footer & Buy Coffee Section

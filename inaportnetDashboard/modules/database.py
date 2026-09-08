@@ -63,16 +63,64 @@ def get_sqlite_conn():
 # Client Supabase & Cek Koneksi
 # ──────────────────────────────────────────────────────────────
 
-@st.cache_resource
-def get_supabase_client():
-    """Mengembalikan Supabase client. Menggunakan st.secrets untuk kredensial."""
+# ──────────────────────────────────────────────────────────────
+# Manual Supabase Connection (Session-based)
+# ──────────────────────────────────────────────────────────────
+
+def set_supabase_credentials(url: str, key: str) -> bool:
+    """
+    Menyimpan kredensial Supabase ke session_state untuk koneksi manual.
+    Returns True jika koneksi berhasil.
+    """
     try:
         from supabase import create_client
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
+        client = create_client(url, key)
+        # Test koneksi
+        client.table("pkk_records").select("id").limit(1).execute()
+        st.session_state["supabase_url"] = url
+        st.session_state["supabase_key"] = key
+        st.session_state["supabase_connected"] = True
+        return True
+    except Exception as e:
+        st.session_state["supabase_connected"] = False
+        return False
+
+
+def clear_supabase_credentials():
+    """Menghapus kredensial dan status koneksi dari session_state."""
+    st.session_state.pop("supabase_url", None)
+    st.session_state.pop("supabase_key", None)
+    st.session_state.pop("supabase_connected", None)
+
+
+def get_supabase_client():
+    """
+    Mengembalikan Supabase client. Prioritas:
+    1. Kredensial manual dari session_state (jika ada)
+    2. st.secrets (jika tersedia)
+    3. None (tidak terhubung)
+    """
+    # Priority 1: Manual credentials (session-based)
+    url = st.session_state.get("supabase_url")
+    key = st.session_state.get("supabase_key")
+    if url and key:
+        try:
+            from supabase import create_client
+            return create_client(url, key)
+        except Exception:
+            pass
+
+    # Priority 2: st.secrets
+    try:
+        from supabase import create_client
+        url = st.secrets.get("SUPABASE_URL")
+        key = st.secrets.get("SUPABASE_KEY")
+        if url and key:
+            return create_client(url, key)
     except Exception:
-        return None
+        pass
+
+    return None
 
 
 def is_supabase_connected() -> bool:
