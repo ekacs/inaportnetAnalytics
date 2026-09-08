@@ -481,7 +481,25 @@ with tab_supabase:
     db_info = get_db_status_info()
     st.info(f"ℹ️ **Database Aktif:** {db_info['label']}")
 
-    col_db1, col_db2, col_db3 = st.columns(3)
+    col_src, col_db1, col_db2, col_db3 = st.columns([1.5, 2, 2, 2])
+
+    with col_src:
+        db_source_options = ["Otomatis"]
+        if is_supabase_connected():
+            db_source_options.append("Supabase Cloud")
+        db_source_options.append("SQLite (Lokal)")
+
+        db_source = st.selectbox(
+            "🗄️ Sumber Data",
+            options=db_source_options,
+            key="db_source_selector",
+            help="Otomatis: pilih Supabase jika terhubung, SQLite jika tidak."
+        )
+        db_source_code = None
+        if db_source == "Supabase Cloud":
+            db_source_code = "supabase"
+        elif db_source == "SQLite (Lokal)":
+            db_source_code = "sqlite"
 
     with col_db1:
         year_db = st.selectbox("📅 Tahun", [2025, 2024], key="year_db")
@@ -505,18 +523,20 @@ with tab_supabase:
         filter_codes_db = [port_code_of[lbl] for lbl in filter_port_db if lbl in port_code_of]
 
     if st.button("📥 Muat dari Database", type="primary", width="stretch"):
-        with st.spinner(f"Mengambil data dari {db_info['short_label']}..."):
+        actual_source_label = db_source if db_source != "Otomatis" else db_info['short_label']
+        with st.spinner(f"Mengambil data dari {actual_source_label}..."):
             df_db = fetch_pkk_records(
                 port_codes=filter_codes_db if filter_codes_db else None,
                 year=year_db,
                 angkutan=angkutan_db_codes if len(angkutan_db_codes) < 2 else None,
+                source=db_source_code,
             )
 
         if df_db.empty:
-            st.warning("⚠️ Tidak ada data ditemukan di database dengan filter tersebut.")
+            st.warning(f"⚠️ Tidak ada data ditemukan di {actual_source_label} dengan filter tersebut.")
         else:
             st.session_state["df"] = df_db
-            st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari {db_info['short_label']}.")
+            st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari {actual_source_label}.")
             with st.expander("🔍 Preview Data"):
                 st.dataframe(df_db.head(20), width="stretch")
 

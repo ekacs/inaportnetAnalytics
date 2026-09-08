@@ -306,14 +306,21 @@ def fetch_pkk_records(
     year: Optional[int] = None,
     angkutan: Optional[List[str]] = None,
     page_size: int = 1000,
+    source: Optional[str] = None,
 ) -> pd.DataFrame:
     """
-    Mengambil data PKK dari Supabase Cloud (jika terhubung) atau SQLite lokal.
+    Mengambil data PKK dari database.
+    source: 'supabase', 'sqlite', atau None (otomatis)
     """
-    if is_supabase_connected():
+    if source == "supabase":
         return _fetch_pkk_records_supabase(port_codes=port_codes, year=year, angkutan=angkutan, page_size=page_size)
-    else:
+    elif source == "sqlite":
         return _fetch_pkk_records_sqlite(port_codes=port_codes, year=year, angkutan=angkutan)
+    else:
+        if is_supabase_connected():
+            return _fetch_pkk_records_supabase(port_codes=port_codes, year=year, angkutan=angkutan, page_size=page_size)
+        else:
+            return _fetch_pkk_records_sqlite(port_codes=port_codes, year=year, angkutan=angkutan)
 
 
 def _fetch_pkk_records_supabase(
