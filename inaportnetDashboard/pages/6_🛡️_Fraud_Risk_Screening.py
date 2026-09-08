@@ -255,7 +255,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
             st.markdown("#### 1. Model Regresi OLS & Modified Z-Score")
             st.latex(r"T_i = \beta_0 + \beta_1 V + \beta_2 GT + \beta_3 D + \beta_4 H")
             st.latex(r"Z_i = 0.6745 \frac{r_i - \bar{r}}{\text{MAD}} \le -2.5")
-            st.write(f"• **Jumlah Outlier Residual ($Z \le -2.5$):** {summary_stats.get('stat_pkk', 0):,} transaksi ({summary_stats.get('stat_pct', 0):.}%)")
+            st.write(f"• **Jumlah Outlier Residual ($Z \\le -2.5$):** {summary_stats.get('stat_pkk', 0):,} transaksi ({summary_stats.get('stat_pct', 0):.1f}%)")
             st.caption("Menyoroti deviasi residual negatif yang ekstrem (persetujuan abnormal yang jauh lebih cepat dibanding ekspektasi kondisi operasional).")
 
         with st_col2:
@@ -263,7 +263,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
             st.write("• **Estimators:** 100 trees | **Max Samples:** 256")
             st.write("• **Contamination:** 0.07 (7% target anomali)")
             st.write("• **Features:** Log Approval Duration, Log GT, Log Port Volume, Hour")
-            st.write(f"• **Jumlah Anomali Multidimensi Terisolasi:** {summary_stats.get('ml_pkk', 0):,} transaksi ({summary_stats.get('ml_pct', 0):.}%)")
+            st.write(f"• **Jumlah Anomali Multidimensi Terisolasi:** {summary_stats.get('ml_pkk', 0):,} transaksi ({summary_stats.get('ml_pct', 0):.1f}%)")
             st.caption("Mendeteksi pola kombinasi fitur non-linear kompleks yang tidak terjangkau oleh aturan manual.")
 
     # ── TAB 4: GOVERNANCE & RISK TIERS ───────────────────────────
