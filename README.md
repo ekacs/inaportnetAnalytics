@@ -69,11 +69,14 @@ inaportnetAnalytics/
 ## Research Paper & CFRSI Framework
 
 This project integrates the research framework from:
-> **"Toward Data-Driven Anti-Fraud Governance: Anomaly Detection and Composite Risk Scoring for Port-Level Oversight in Digital Maritime Services"**
+
+> **"Toward Data-Driven Anti-Fraud Governance: Anomaly Detection and Composite Fraud Risk Scoring for Port-Level Oversight in Digital Maritime Services"**
 > *Rifki Wijaya & Eka C. Setyawan (2026)*
 
 ### Composite Fraud Risk Screening Index (CFRSI)
+
 The framework integrates 3 complementary analytical perspectives:
+
 1. **Rule-Based Engine**: 5 Red Flag rules (Quick Approval <10s, Long Duration >8h, Low Oversight 00-04, GT Manipulation, Same Vessel across 2 ports <2h).
 2. **Statistical Engine**: OLS Regression & Modified Z-Score residual threshold (Z_i <= -2.5).
 3. **Machine Learning Engine**: Unsupervised Isolation Forest multidimensional anomaly detection.
@@ -85,6 +88,7 @@ The framework integrates 3 complementary analytical perspectives:
 ## Key Features (v3.0)
 
 ### Data Collection
+
 - **2-Stage Web Scraping**: PKK list retrieval + approval detail extraction
 - **Anti-Detection**: Browser-like User-Agent rotation, random delays (0.8-3s), exponential backoff retry (max 3 attempts), persistent session cookies
 - **Pause / Resume / Stop**: Real-time control buttons during scraping with progress bar, elapsed time, ETA, and error count
@@ -92,18 +96,21 @@ The framework integrates 3 complementary analytical perspectives:
 - **Database Source Selector**: Choose between Supabase Cloud, SQLite Local, or Auto-detect
 
 ### Analysis
+
 - **Traffic Analytics**: Volume share per port, quarterly/monthly/daily/hourly trends
 - **Service Performance**: SLA compliance (<=30 min threshold), response time distribution, top 10 worst performers
 - **Port Classification**: 4-quadrant matrix (Benchmark/Efficient/Developing/Congested) with Composite Performance Index
 - **CFRSI Fraud Risk Screening**: 3-layer anomaly detection with 5-tier risk classification
 
 ### Database
+
 - **Dual-Mode Storage**: Supabase Cloud (PostgreSQL) + SQLite Local (fallback, auto-created)
 - **Manual Connection UI**: Connect to Supabase directly from the dashboard (no secrets.toml required)
 - **Auto-Fallback**: Falls back to SQLite if Supabase is unavailable
 - **Multi-Format Export**: CSV, Excel, JSON, SQL dump
 
 ### UI/UX
+
 - **Light/Dark Mode**: Theme selector in sidebar
 - **Interactive Charts**: Plotly-based donut, bar, line, scatter, histogram plots
 - **Responsive Layout**: Wide layout with metric cards and navigation grid
@@ -130,6 +137,7 @@ python -m streamlit run app.py
 ## Setup Supabase (Optional)
 
 ### Option A: secrets.toml (Traditional)
+
 1. Create a project at https://supabase.com
 2. Run `supabase_schema.sql` in Supabase SQL Editor
 3. Fill credentials in `inaportnetDashboard/.streamlit/secrets.toml`:
@@ -139,6 +147,7 @@ python -m streamlit run app.py
    ```
 
 ### Option B: Dashboard UI (Recommended)
+
 1. Run the dashboard
 2. Click **"Konfigurasi Supabase"** button in the sidebar
 3. Enter your Supabase URL and Anon Key
@@ -148,13 +157,13 @@ python -m streamlit run app.py
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Streamlit (multi-page app) |
-| Backend | Python (pandas, numpy, scipy, scikit-learn) |
-| Database | Supabase (PostgreSQL Cloud) + SQLite Local |
-| Visualization | Plotly (interactive charts) |
-| Data Source | Web scraping from monitoring-inaportnet.dephub.go.id |
+| Layer         | Technology                                           |
+| ------------- | ---------------------------------------------------- |
+| Frontend      | Streamlit (multi-page app)                           |
+| Backend       | Python (pandas, numpy, scipy, scikit-learn)          |
+| Database      | Supabase (PostgreSQL Cloud) + SQLite Local           |
+| Visualization | Plotly (interactive charts)                          |
+| Data Source   | Web scraping from monitoring-inaportnet.dephub.go.id |
 
 ---
 
