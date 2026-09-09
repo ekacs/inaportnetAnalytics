@@ -18,6 +18,7 @@ client_secret*.json
 # ==========================================
 workfiles/
 workfiles/*
+*/backup/
 
 # ==========================================
 # 3. Python & Virtual Environments
