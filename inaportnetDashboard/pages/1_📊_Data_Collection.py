@@ -394,11 +394,31 @@ with tab_upload:
                 st.error(validation["message"])
             else:
                 st.info(validation["message"])
-                col_u1, col_u2 = st.columns(2)
-                with col_u1:
-                    save_upload_db = st.checkbox("💾 Simpan ke Database (Supabase / SQLite)", value=True, key="save_upload")
-                with col_u2:
-                    st.markdown("")
+                st.markdown("**💾 Simpan hasil upload ke:**")
+                upload_save_target = st.radio(
+                    "Target penyimpanan upload",
+                    options=["☁️ Supabase Cloud", "📦 SQLite (Lokal)"],
+                    horizontal=True,
+                    key="upload_save_target",
+                )
+                upload_db_source = "supabase" if "Supabase" in upload_save_target else "sqlite"
+
+                if upload_db_source == "supabase" and not is_supabase_connected():
+                    st.info("🔗 Masukkan kredensial Supabase untuk melanjutkan.")
+                    ub_col1, ub_col2 = st.columns(2)
+                    with ub_col1:
+                        ub_url = st.text_input("Supabase URL", placeholder="https://xxxxx.supabase.co", key="upload_sb_url")
+                    with ub_col2:
+                        ub_key = st.text_input("Supabase Anon Key", type="password", placeholder="eyJhbGci...", key="upload_sb_key")
+                    if ub_url and ub_key:
+                        if st.button("🔌 Hubungkan Supabase", key="btn_upload_sb_connect"):
+                            with st.spinner("Menghubungkan..."):
+                                if set_supabase_credentials(ub_url, ub_key):
+                                    st.success("✅ Supabase terhubung!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Gagal terhubung. Periksa URL dan Key.")
+                    st.stop()
 
                 if st.button("✅ Gunakan Data Ini", type="primary", key="btn_use_upload"):
                     # Step 1: Preprocessing & Deduplication Progress
@@ -429,31 +449,29 @@ with tab_upload:
                         st.info(f"🧹 **{n_dups:,} record duplikat** dibersihkan dari file.")
                     st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
-                    # Step 2: Database Storage Progress
-                    if save_upload_db:
-                        db_status = st.empty()
-                        db_progress = st.progress(0)
-                        db_target = "Supabase Cloud" if is_supabase_connected() else "SQLite (Lokal)"
-                        
-                        tot_recs = len(df_final)
-                        def db_progress_cb(cur, tot):
-                            pct = int(cur / tot * 100) if tot > 0 else 0
-                            db_progress.progress(pct)
-                            db_status.info(
-                                f"💾 **Menyimpan ke {db_target}:** {cur:,} / {tot:,} record ({pct}%) "
-                                f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 3000, 1))} detik"
-                            )
+                    db_target = "Supabase Cloud" if upload_db_source == "supabase" else "SQLite (Lokal)"
+                    db_status = st.empty()
+                    db_progress = st.progress(0)
 
-                        res = insert_pkk_records(df_final, batch_size=2500, progress_callback=db_progress_cb)
-                        
-                        db_status.empty()
-                        db_progress.empty()
+                    tot_recs = len(df_final)
+                    def db_progress_cb(cur, tot):
+                        pct = int(cur / tot * 100) if tot > 0 else 0
+                        db_progress.progress(pct)
+                        db_status.info(
+                            f"💾 **Menyimpan ke {db_target}:** {cur:,} / {tot:,} record ({pct}%) "
+                            f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 3000, 1))} detik"
+                        )
 
-                        if res["success"]:
-                            st.success(f"💾 **{res['inserted']:,} record** berhasil tersimpan ke {db_target}.")
-                            st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
-                        else:
-                            st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
+                    res = insert_pkk_records(df_final, batch_size=2500, progress_callback=db_progress_cb, source=upload_db_source)
+
+                    db_status.empty()
+                    db_progress.empty()
+
+                    if res["success"]:
+                        st.success(f"💾 **{res['inserted']:,} record** berhasil tersimpan ke {db_target}.")
+                        st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
+                    else:
+                        st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
 
         except MemoryError:
             st.error(
