@@ -224,17 +224,28 @@ def prepare_df_for_db(df: pd.DataFrame) -> pd.DataFrame:
 # INSERT / UPSERT
 # ──────────────────────────────────────────────────────────────
 
-def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callback=None) -> dict:
+def insert_pkk_records(df: pd.DataFrame, batch_size: int = 500, progress_callback=None, source: str = "auto") -> dict:
     """
-    Menyimpan DataFrame PKK ke Supabase (jika ada) atau SQLite lokal dengan upsert.
+    Menyimpan DataFrame PKK ke database.
+
+    Parameters
+    ----------
+    source : str
+        "supabase" — paksa ke Supabase, "sqlite" — paksa ke SQLite,
+        "auto" — otomatis pilih berdasarkan koneksi aktif.
     """
     if df.empty:
         return {"success": True, "inserted": 0, "error": None}
 
-    if is_supabase_connected():
+    if source == "supabase":
         return _insert_pkk_records_supabase(df, batch_size=batch_size, progress_callback=progress_callback)
-    else:
+    elif source == "sqlite":
         return _insert_pkk_records_sqlite(df, batch_size=batch_size, progress_callback=progress_callback)
+    else:
+        if is_supabase_connected():
+            return _insert_pkk_records_supabase(df, batch_size=batch_size, progress_callback=progress_callback)
+        else:
+            return _insert_pkk_records_sqlite(df, batch_size=batch_size, progress_callback=progress_callback)
 
 
 def _insert_pkk_records_supabase(df: pd.DataFrame, batch_size: int = 500, progress_callback=None) -> dict:

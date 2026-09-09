@@ -13,7 +13,8 @@ from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
     is_supabase_connected, get_db_status_info, deduplicate_dataframe,
-    delete_all_supabase_records, delete_all_sqlite_records
+    delete_all_supabase_records, delete_all_sqlite_records,
+    set_supabase_credentials
 )
 from modules.theme import render_theme_selector
 
@@ -168,7 +169,33 @@ with tab_scrape:
         icon="🚫",
     )
 
-    save_to_db = st.checkbox("💾 Simpan otomatis ke Database (Supabase / SQLite) setelah scraping selesai", value=True)
+    # ── Pilihan storage wajib ──
+    st.markdown("**💾 Simpan hasil scraping ke:**")
+    scrape_save_target = st.radio(
+        "Target penyimpanan",
+        options=["☁️ Supabase Cloud", "📦 SQLite (Lokal)"],
+        horizontal=True,
+        key="scrape_save_target",
+    )
+    scrape_db_source = "supabase" if "Supabase" in scrape_save_target else "sqlite"
+
+    # ── Jika pilih Supabase tapi belum terhubung, minta credential ──
+    if scrape_db_source == "supabase" and not is_supabase_connected():
+        st.info("🔗 Masukkan kredensial Supabase untuk melanjutkan.")
+        sb_col1, sb_col2 = st.columns(2)
+        with sb_col1:
+            sb_url = st.text_input("Supabase URL", placeholder="https://xxxxx.supabase.co", key="scrape_sb_url")
+        with sb_col2:
+            sb_key = st.text_input("Supabase Anon Key", type="password", placeholder="eyJhbGci...", key="scrape_sb_key")
+        if sb_url and sb_key:
+            if st.button("🔌 Hubungkan Supabase", key="btn_scrape_sb_connect"):
+                with st.spinner("Menghubungkan..."):
+                    if set_supabase_credentials(sb_url, sb_key):
+                        st.success("✅ Supabase terhubung!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Gagal terhubung. Periksa URL dan Key.")
+        st.stop()
 
     btn_scrape = st.button(
         "🚀 Mulai Scraping",
@@ -263,17 +290,15 @@ with tab_scrape:
                 st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
                 result_area.dataframe(df_processed.head(10), width="stretch")
 
-                # Simpan ke Database (Supabase / SQLite)
-                if save_to_db:
-                    db_target = "Supabase Cloud" if is_supabase_connected() else "SQLite (Lokal)"
-                    with st.spinner(f"Menyimpan ke {db_target}..."):
-                        res = insert_pkk_records(df_processed)
-                    if res["success"]:
-                        st.success(f"💾 **{res['inserted']:,} record** tersimpan ke {db_target}.")
-                        st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
-                    else:
-                        st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
-                        st.toast(f"❌ Gagal simpan DB: {res['error']}", icon="❌")
+                db_target = "Supabase Cloud" if scrape_db_source == "supabase" else "SQLite (Lokal)"
+                with st.spinner(f"Menyimpan ke {db_target}..."):
+                    res = insert_pkk_records(df_processed, source=scrape_db_source)
+                if res["success"]:
+                    st.success(f"💾 **{res['inserted']:,} record** tersimpan ke {db_target}.")
+                    st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
+                else:
+                    st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
+                    st.toast(f"❌ Gagal simpan DB: {res['error']}", icon="❌")
 
 # ────────────────────────────────────────────────────────────────
 # TAB 2 — UPLOAD FILE
