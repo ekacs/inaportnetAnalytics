@@ -12,7 +12,8 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
-    is_supabase_connected, get_db_status_info, deduplicate_dataframe
+    is_supabase_connected, get_db_status_info, deduplicate_dataframe,
+    delete_all_supabase_records, delete_all_sqlite_records
 )
 from modules.theme import render_theme_selector
 
@@ -524,6 +525,44 @@ with tab_supabase:
             st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari {actual_source_label}.")
             with st.expander("🔍 Preview Data"):
                 st.dataframe(df_db.head(20), width="stretch")
+
+    st.markdown("---")
+    st.markdown('<div class="section-header">🗑️ Hapus Semua Data</div>', unsafe_allow_html=True)
+    st.warning(
+        "⚠️ **Peringatan:** Tindakan ini akan menghapus **SEMUA data** dari database yang dipilih. "
+        "Tindakan ini tidak dapat dibatalkan."
+    )
+
+    del_col1, del_col2 = st.columns(2)
+    with del_col1:
+        del_target = st.radio(
+            "🗄️ Hapus dari:",
+            ["Supabase Cloud", "SQLite (Lokal)"],
+            horizontal=True,
+            key="del_target_radio",
+        )
+    with del_col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        confirm_del = st.checkbox("Saya yakin ingin menghapus semua data", key="confirm_delete_all")
+
+    if st.button(
+        "🗑️ Hapus Semua Data",
+        type="primary",
+        disabled=not confirm_del,
+        key="btn_delete_all",
+    ):
+        with st.spinner("Menghapus data..."):
+            if del_target == "Supabase Cloud":
+                res = delete_all_supabase_records()
+            else:
+                res = delete_all_sqlite_records()
+
+        if res["success"]:
+            st.success(f"✅ **{res.get('deleted', 0):,} record** berhasil dihapus dari {del_target}.")
+            st.toast(f"🗑️ Data di {del_target} berhasil dihapus.", icon="✅")
+        else:
+            st.error(f"❌ Gagal menghapus data: {res.get('error', 'Unknown error')}")
+            st.toast(f"❌ Gagal hapus: {res.get('error', '')}", icon="❌")
 
 # ────────────────────────────────────────────────────────────────
 # TAB 4 — EKSPOR DATA

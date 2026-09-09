@@ -331,6 +331,7 @@ def _fetch_pkk_records_supabase(
 ) -> pd.DataFrame:
     client = get_supabase_client()
     if client is None:
+        st.warning("⚠️ Supabase client = None. Koneksi belum diinisialisasi.")
         return pd.DataFrame()
 
     all_records = []
@@ -356,6 +357,10 @@ def _fetch_pkk_records_supabase(
             offset += page_size
 
         if not all_records:
+            st.info(
+                f"ℹ️ Query Supabase kosong. Filter: "
+                f"year={year}, angkutan={angkutan}, port_codes={port_codes or '(semua)'}"
+            )
             return pd.DataFrame()
 
         df = pd.DataFrame(all_records)
@@ -638,6 +643,45 @@ def delete_pkk_records(port_codes: List[str], year: int) -> dict:
             return {"success": True, "error": None}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+
+def delete_all_supabase_records() -> dict:
+    """Hapus SEMUA record dari Supabase pkk_records."""
+    client = get_supabase_client()
+    if client is None:
+        return {"success": False, "error": "Supabase client tidak tersedia."}
+
+    try:
+        total_deleted = 0
+        while True:
+            resp = client.table("pkk_records").select("id").limit(1000).execute()
+            if not resp.data:
+                break
+            ids = [r["id"] for r in resp.data]
+            client.table("pkk_records").delete().in_("id", ids).execute()
+            total_deleted += len(ids)
+            if len(ids) < 1000:
+                break
+
+        return {"success": True, "deleted": total_deleted, "error": None}
+    except Exception as e:
+        return {"success": False, "deleted": 0, "error": str(e)}
+
+
+def delete_all_sqlite_records() -> dict:
+    """Hapus SEMUA record dari SQLite lokal."""
+    try:
+        init_sqlite_db()
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM pkk_records")
+        count = cursor.fetchone()[0]
+        cursor.execute("DELETE FROM pkk_records")
+        conn.commit()
+        conn.close()
+        return {"success": True, "deleted": count, "error": None}
+    except Exception as e:
+        return {"success": False, "deleted": 0, "error": str(e)}
 
 
 def deduplicate_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
