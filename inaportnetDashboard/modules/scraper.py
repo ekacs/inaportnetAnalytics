@@ -10,7 +10,6 @@ Anti-detection:
   - Retry dengan exponential backoff (max 3 attempt)
 """
 
-import os
 import requests
 import pandas as pd
 import random
@@ -19,8 +18,6 @@ from io import StringIO
 from typing import List, Callable, Optional, Dict, Any
 
 BASE_URL = "https://monitoring-inaportnet.dephub.go.id"
-_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-_DATA_DIR = os.path.join(os.path.dirname(_MODULE_DIR), "data")
 
 # ── User-Agent rotation (browser-like) ────────────────────────
 _USER_AGENTS = [
@@ -144,8 +141,6 @@ def scrape_pkk_list(
     progress_callback: Optional[Callable] = None,
     status_callback: Optional[Callable] = None,
     error_callback: Optional[Callable[[str], None]] = None,
-    pause_check: Optional[Callable[[], bool]] = None,
-    stop_check: Optional[Callable[[], bool]] = None,
 ) -> pd.DataFrame:
     """
     Tahap 1: Mengambil daftar nomor PKK untuk setiap kombinasi
@@ -260,8 +255,6 @@ def scrape_approval_times(
     progress_callback: Optional[Callable] = None,
     status_callback: Optional[Callable] = None,
     error_callback: Optional[Callable[[str], None]] = None,
-    pause_check: Optional[Callable[[], bool]] = None,
-    stop_check: Optional[Callable[[], bool]] = None,
 ) -> pd.DataFrame:
     """
     Tahap 2: Mengambil waktu permohonan dan persetujuan untuk setiap nomor PKK.
@@ -367,15 +360,18 @@ def scrape_approval_times(
 # PORT REFERENCE & FULL PIPELINE
 # ══════════════════════════════════════════════════════════════
 
-def load_port_reference(filepath: str = None) -> pd.DataFrame:
-    if filepath is None:
-        filepath = os.path.join(_DATA_DIR, "port_code.xlsx")
-    elif not os.path.isabs(filepath):
-        filepath = os.path.join(_DATA_DIR, os.path.basename(filepath))
+def load_port_reference(filepath: str = "data/port_code.xlsx") -> pd.DataFrame:
+    """
+    Memuat referensi kode dan nama pelabuhan dari file Excel.
+
+    Returns
+    -------
+    pd.DataFrame : kolom minimal [KODE, PELABUHAN]
+    """
     try:
         df = pd.read_excel(filepath)
         return df
-    except Exception:
+    except Exception as e:
         return pd.DataFrame(columns=["KODE", "PELABUHAN"])
 
 
@@ -390,8 +386,6 @@ def run_full_scraping(
     progress_stage2: Optional[Callable] = None,
     status_stage2: Optional[Callable] = None,
     error_callback: Optional[Callable[[str], None]] = None,
-    pause_check: Optional[Callable[[], bool]] = None,
-    stop_check: Optional[Callable[[], bool]] = None,
 ) -> pd.DataFrame:
     """
     Menjalankan scraping lengkap (2 tahap) dan menggabungkan hasilnya
