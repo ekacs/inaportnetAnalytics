@@ -149,8 +149,23 @@ df_port_ref = load_port_ref()
 port_labels = df_port_ref["label"].tolist() if not df_port_ref.empty else []
 port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} if not df_port_ref.empty else {}
 
+# ── Database Source Selector ─────────────────────────────────────
+st.markdown('<div class="section-header">🗄️ Sumber Database</div>', unsafe_allow_html=True)
+
+db_source_options = ["📦 SQLite (Lokal)"]
+if is_supabase_connected():
+    db_source_options.append("☁️ Supabase Cloud")
+
+db_source = st.radio(
+    "Pilih Sumber Data",
+    options=db_source_options,
+    horizontal=True,
+    key="db_viewer_source",
+)
+db_source_code = "supabase" if "Supabase" in db_source else "sqlite"
+
 # ── DB Ringkasan Metrik ────────────────────────────────────────
-db_stats = get_database_stats()
+db_stats = get_database_stats(source=db_source_code)
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
@@ -178,7 +193,7 @@ with c3:
     </div>
     """, unsafe_allow_html=True)
 with c4:
-    db_server_label = "Supabase Cloud" if is_supabase_connected() else "SQLite Local"
+    db_server_label = "Supabase Cloud" if db_source_code == "supabase" else "SQLite Local"
     st.markdown(f"""
     <div class="metric-card">
         <div class="val">Active</div>
@@ -240,7 +255,7 @@ offset_val = (current_page - 1) * page_size
 # ════════════════════════════════════════════════════════════════
 # FETCH DATA
 # ════════════════════════════════════════════════════════════════
-with st.spinner("Mengambil data langsung dari Supabase..."):
+with st.spinner(f"Mengambil data dari {db_source}..."):
     df_db_view, total_filtered_count = fetch_pkk_records_paginated(
         port_codes=selected_port_codes if selected_port_codes else None,
         year=year_sel,
@@ -248,6 +263,7 @@ with st.spinner("Mengambil data langsung dari Supabase..."):
         search_query=search_q,
         limit=page_size,
         offset=offset_val,
+        source=db_source_code,
     )
 
 total_pages = max(1, (total_filtered_count + page_size - 1) // page_size)

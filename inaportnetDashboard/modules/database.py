@@ -445,11 +445,15 @@ def fetch_pkk_records_paginated(
     search_query: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
+    source: Optional[str] = None,
 ) -> tuple[pd.DataFrame, int]:
     """
-    Mengambil data PKK dengan filter, pencarian, dan pagination dari Supabase atau SQLite.
+    Mengambil data PKK dengan filter, pencarian, dan pagination.
+    source: "supabase" | "sqlite" | None (auto)
     """
-    if is_supabase_connected():
+    use_supabase = (source == "supabase") if source else is_supabase_connected()
+
+    if use_supabase:
         return _fetch_pkk_records_paginated_supabase(
             port_codes=port_codes, year=year, angkutan=angkutan, search_query=search_query, limit=limit, offset=offset
         )
@@ -601,9 +605,11 @@ def _fetch_pkk_records_paginated_sqlite(
 # UTILITIES & MAINTENANCE
 # ──────────────────────────────────────────────────────────────
 
-def get_available_ports_from_db() -> List[str]:
+def get_available_ports_from_db(source: Optional[str] = None) -> List[str]:
     """Ambil daftar port_code yang tersedia di database."""
-    if is_supabase_connected():
+    use_supabase = (source == "supabase") if source else is_supabase_connected()
+
+    if use_supabase:
         client = get_supabase_client()
         try:
             response = client.table("pkk_records").select("port_code").execute()
@@ -862,16 +868,19 @@ def _check_and_clean_db_duplicates_sqlite(progress_callback=None) -> dict:
         }
 
 
-def get_database_stats() -> dict:
+def get_database_stats(source: Optional[str] = None) -> dict:
     """
-    Mengembalikan statistik metrik ringkas dari database (Supabase atau SQLite).
+    Mengembalikan statistik metrik ringkas dari database.
+    source: "supabase" | "sqlite" | None (auto)
     """
-    if is_supabase_connected():
+    use_supabase = (source == "supabase") if source else is_supabase_connected()
+
+    if use_supabase:
         client = get_supabase_client()
         try:
             res_count = client.table("pkk_records").select("id", count="exact").limit(1).execute()
             total_records = res_count.count if res_count.count is not None else 0
-            codes = get_available_ports_from_db()
+            codes = get_available_ports_from_db(source="supabase")
             return {
                 "connected": True,
                 "db_type": "supabase",
@@ -891,7 +900,7 @@ def get_database_stats() -> dict:
         cursor.execute("SELECT COUNT(*) FROM pkk_records")
         total_records = cursor.fetchone()[0]
         conn.close()
-        codes = get_available_ports_from_db()
+        codes = get_available_ports_from_db(source="sqlite")
         return {
             "connected": True,
             "db_type": "sqlite",
