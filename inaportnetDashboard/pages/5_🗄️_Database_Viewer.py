@@ -83,6 +83,9 @@ with st.sidebar:
     if "df" in st.session_state and not st.session_state["df"].empty:
         st.markdown("**Data Sesi Analisis**")
         st.info(f"📌 {len(st.session_state['df']):,} record dimuat")
+        if st.button("🗑️ Hapus Data Sesi", width="stretch"):
+            st.session_state.pop("df", None)
+            st.rerun()
 
 # ── Header ────────────────────────────────────────────────────
 st.markdown("# 🗄️ Live Database Viewer & Downloader")
