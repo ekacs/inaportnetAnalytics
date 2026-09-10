@@ -9,7 +9,7 @@ import streamlit as st
 import pandas as pd
 from modules.database import (
     is_connected, is_supabase_connected, get_db_status_info, get_database_stats, fetch_pkk_records_paginated,
-    get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
+    fetch_pkk_records, get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
 )
 from modules.theme import render_theme_selector
 from modules.scraper import load_port_reference
@@ -346,11 +346,12 @@ scope_option = st.radio(
 )
 
 if scope_option.startswith("🌐"):
-    with st.spinner("Mengambil seluruh data terfilter dari Supabase untuk diunduh..."):
+    with st.spinner(f"Mengambil seluruh data terfilter dari {db_source} untuk diunduh..."):
         df_download = fetch_pkk_records(
             port_codes=selected_port_codes if selected_port_codes else None,
             year=year_sel,
             angkutan=angkutan_codes if len(angkutan_codes) == 1 else None,
+            source=db_source_code,
         )
 else:
     df_download = df_db_view.copy()
