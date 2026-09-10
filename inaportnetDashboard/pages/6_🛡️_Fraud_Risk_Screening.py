@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 from modules.database import is_connected, get_db_status_info
 from modules.theme import render_theme_selector
+from modules.scraper import load_port_reference
 from modules.analysis import (
     compute_fraud_risk_analysis,
     get_fraud_national_summary,
@@ -139,6 +140,9 @@ if not has_data:
 if "df" in st.session_state and not st.session_state["df"].empty:
     df_raw = st.session_state["df"]
 
+    _port_ref = load_port_reference("data/port_code.xlsx")
+    port_name_map = _port_ref.drop_duplicates(subset="KODE").set_index("KODE")["PELABUHAN"].to_dict() if not _port_ref.empty else {}
+
     # Jalankan Analisis CFRSI & Deteksi Anomali
     with st.spinner("Mengoperasikan Engine Deteksi Anomali 3-Lapis (Rule-Based, OLS Z-Score, Isolation Forest)..."):
         df_analyzed, cfrsi_df = compute_fraud_risk_analysis(df_raw)
@@ -205,8 +209,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         
         filtered_cfrsi = cfrsi_df[cfrsi_df["risk_tier_fixed"].astype(str).isin(tier_filter)]
 
-        if not df_port_ref.empty:
-            port_name_map = df_port_ref.drop_duplicates(subset="KODE").set_index("KODE")["PELABUHAN"].to_dict()
+        if port_name_map:
             filtered_cfrsi = filtered_cfrsi.copy()
             filtered_cfrsi["Nama Pelabuhan"] = filtered_cfrsi["port_code"].map(port_name_map).fillna("-")
 
@@ -222,6 +225,8 @@ if "df" in st.session_state and not st.session_state["df"].empty:
                 "cfrsi": "Skor CFRSI",
                 "risk_tier_fixed": "Tingkat Risiko"
             })
+        display_df.index = range(1, len(display_df) + 1)
+        display_df.index.name = "No."
         st.dataframe(
             display_df,
             use_container_width=True,
