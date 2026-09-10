@@ -4,6 +4,7 @@ Halaman penjelajah database Supabase secara langsung (Live Database Viewer)
 dan opsi pengunduhan data dalam berbagai format (CSV, Excel, JSON, SQL).
 """
 
+import io
 import streamlit as st
 import pandas as pd
 from modules.database import (
