@@ -152,8 +152,8 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     metrics = [
         (c1, f"{summary_stats.get('total_pkk', 0):,}",       "Total PKK Evaluasi",   "Scope 2025"),
         (c2, f"{summary_stats.get('red_flag_pct', 0):.2f}%", "Transaksi Red Flag",   f"{summary_stats.get('red_flag_pkk', 0):,} transaksi"),
-        (c3, f"{summary_stats.get('stat_pct', 0):.2f}%",     "Statistical Outliers",  "Modified Z <= -2.5"),
-        (c4, f"{summary_stats.get('ml_pct', 0):.2f}%",       "Isolation Forest",     "Contamination 7%"),
+        (c3, f"{summary_stats.get('stat_pct', 0):.2f}%",     "Statistical Outliers",  f"{summary_stats.get('stat_pkk', 0):,} transaksi"),
+        (c4, f"{summary_stats.get('ml_pct', 0):.2f}%",       "Isolation Forest",     f"{summary_stats.get('ml_pkk', 0):,} transaksi"),
         (c5, f"{summary_stats.get('high_risk_ports', 0)}",   "Pelabuhan Risiko Tinggi", "Tinggi & Sangat Tinggi"),
     ]
 
@@ -204,10 +204,14 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         )
         
         filtered_cfrsi = cfrsi_df[cfrsi_df["risk_tier_fixed"].astype(str).isin(tier_filter)]
-        
-        cols_table = ["port_code", "volume", "total_red_flags", "red_flag_pct", "rule_based_index", "statistical_index", "ml_index", "cfrsi", "risk_tier_fixed"]
-        st.dataframe(
-            filtered_cfrsi[cols_table].rename(columns={
+
+        if not df_port_ref.empty:
+            port_name_map = df_port_ref.drop_duplicates(subset="KODE").set_index("KODE")["PELABUHAN"].to_dict()
+            filtered_cfrsi = filtered_cfrsi.copy()
+            filtered_cfrsi["Nama Pelabuhan"] = filtered_cfrsi["port_code"].map(port_name_map).fillna("-")
+
+        cols_table = ["port_code", "Nama Pelabuhan", "volume", "total_red_flags", "red_flag_pct", "rule_based_index", "statistical_index", "ml_index", "cfrsi", "risk_tier_fixed"]
+        display_df = filtered_cfrsi[[c for c in cols_table if c in filtered_cfrsi.columns]].rename(columns={
                 "port_code": "Kode Pelabuhan",
                 "volume": "Volume PKK",
                 "total_red_flags": "Total Red Flags",
@@ -217,7 +221,9 @@ if "df" in st.session_state and not st.session_state["df"].empty:
                 "ml_index": "ML Index",
                 "cfrsi": "Skor CFRSI",
                 "risk_tier_fixed": "Tingkat Risiko"
-            }),
+            })
+        st.dataframe(
+            display_df,
             use_container_width=True,
             height=350
         )
