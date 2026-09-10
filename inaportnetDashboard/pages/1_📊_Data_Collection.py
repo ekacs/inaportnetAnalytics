@@ -640,24 +640,27 @@ with tab_export:
             if df_current.empty:
                 st.info("Data kosong — tidak ada yang bisa diekspor.")
             else:
-                excel_buf = io.BytesIO()
-                with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                    df_current.to_excel(writer, sheet_name="Data PKK", index=False)
+                try:
+                    excel_buf = io.BytesIO()
+                    with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+                        df_current.to_excel(writer, sheet_name="Data PKK", index=False)
 
-                    if "port_code" in df_current.columns and "approval_minutes" in df_current.columns:
-                        from modules.analysis import compute_port_summary
-                        summary = compute_port_summary(df_current)
-                        if not summary.empty:
-                            summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
+                        if "port_code" in df_current.columns and "approval_minutes" in df_current.columns:
+                            from modules.analysis import compute_port_summary
+                            summary = compute_port_summary(df_current)
+                            if not summary.empty:
+                                summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
 
-                excel_buf.seek(0)
-                st.download_button(
-                    label="⬇️ Download Excel",
-                    data=excel_buf,
-                file_name="inaportnet_pkk_2025.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                width="stretch",
-            )
+                    excel_buf.seek(0)
+                    st.download_button(
+                        label="⬇️ Download Excel",
+                        data=excel_buf,
+                        file_name="inaportnet_pkk_2025.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        width="stretch",
+                    )
+                except Exception as e:
+                    st.warning(f"⚠️ Gagal membuat file Excel: {str(e)[:200]}")
 
         # Preview kolom
         st.markdown("#### 🔍 Preview Data")

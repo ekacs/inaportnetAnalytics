@@ -19,6 +19,7 @@ client_secret*.json
 workfiles/
 workfiles/*
 */backup/
+*/.report_logs
 
 # ==========================================
 # 3. Python & Virtual Environments
@@ -54,3 +55,8 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+*.db
+*.db-shm
+*.db-wal
+test_upload.csv
+.playwright-mcp/

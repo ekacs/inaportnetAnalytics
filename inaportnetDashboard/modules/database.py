@@ -94,13 +94,6 @@ def clear_supabase_credentials():
 
 
 def get_supabase_client():
-    """
-    Mengembalikan Supabase client. Prioritas:
-    1. Kredensial manual dari session_state (jika ada)
-    2. st.secrets (jika tersedia)
-    3. None (tidak terhubung)
-    """
-    # Priority 1: Manual credentials (session-based)
     url = st.session_state.get("supabase_url")
     key = st.session_state.get("supabase_key")
     if url and key:
@@ -110,7 +103,6 @@ def get_supabase_client():
         except Exception:
             pass
 
-    # Priority 2: st.secrets
     try:
         from supabase import create_client
         url = st.secrets.get("SUPABASE_URL")
