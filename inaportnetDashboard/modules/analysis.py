@@ -332,10 +332,10 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
 
     Metodologi (Wijaya & Setyawan, 2026):
     1. Rule-Based Engine (5 Red Flag criteria)
-    2. Statistical Engine (OLS Residuals & Modified Z-Score <= -2.5)
-    3. Unsupervised ML Engine (Isolation Forest, contamination=0.07)
-    4. Min-Max normalization ke [0.10, 1.00] & equal weighting
-    5. Klasifikasi 5 Tier Risiko (Percentile vs Fixed Scale)
+    2. Statistical Engine (OLS Residuals Modified Z-Score < -1)
+    3. Unsupervised Engine (Isolation Forest, contamination=0.05)
+    4. Min-Max normalization [0.10 - 1.00] + equal weighting
+    5. Klasifikasi 5 Tier Risiko (Percentile-based via pd.qcut)
 
     Returns
     -------
@@ -444,7 +444,7 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
         mad = 1e-6
     mod_z = 0.6745 * (residuals - med_res) / mad
     data["mod_zscore"] = mod_z
-    data["is_stat_anomaly"] = data["mod_zscore"] <= -2.5
+    data["is_stat_anomaly"] = data["mod_zscore"] < -1
 
     # 3. MACHINE LEARNING ANOMALY DETECTION (Isolation Forest)
     features = ["log_approval"]
@@ -466,7 +466,7 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
             n_estimators=100,
             max_samples=min(256, len(data)),
             max_features=1.0,
-            contamination=0.07,
+            contamination=0.05,
             random_state=42,
             n_jobs=-1
         )
@@ -527,14 +527,8 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
     except Exception:
         port_summary["risk_tier_percentile"] = "Sedang"
 
-    # Fixed-scale approach (0.10-0.28, 0.28-0.46, 0.46-0.64, 0.64-0.82, 0.82-1.00)
-    fixed_bins = [0.0, 0.28, 0.46, 0.64, 0.82, 1.01]
-    port_summary["risk_tier_fixed"] = pd.cut(
-        port_summary["cfrsi"],
-        bins=fixed_bins,
-        labels=labels_5,
-        right=False
-    )
+    # Fixed-scale approach dihapus - gunakan percentile-based sebagai default
+    port_summary["risk_tier_fixed"] = port_summary["risk_tier_percentile"]
 
     return data, port_summary.sort_values("cfrsi", ascending=False).reset_index(drop=True)
 
