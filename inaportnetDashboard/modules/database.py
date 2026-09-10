@@ -678,16 +678,21 @@ def delete_all_supabase_records() -> dict:
 
 
 def delete_all_sqlite_records() -> dict:
-    """Hapus SEMUA record dari SQLite lokal."""
+    """Hapus SEMUA record dari SQLite lokal + hapus file .db dari disk."""
     try:
-        init_sqlite_db()
-        conn = sqlite3.connect(SQLITE_DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM pkk_records")
-        count = cursor.fetchone()[0]
-        cursor.execute("DELETE FROM pkk_records")
-        conn.commit()
-        conn.close()
+        count = 0
+        if os.path.exists(SQLITE_DB_PATH):
+            conn = sqlite3.connect(SQLITE_DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM pkk_records")
+            count = cursor.fetchone()[0]
+            conn.close()
+
+        for ext in ("", "-shm", "-wal"):
+            path = SQLITE_DB_PATH + ext
+            if os.path.exists(path):
+                os.remove(path)
+
         return {"success": True, "deleted": count, "error": None}
     except Exception as e:
         return {"success": False, "deleted": 0, "error": str(e)}
