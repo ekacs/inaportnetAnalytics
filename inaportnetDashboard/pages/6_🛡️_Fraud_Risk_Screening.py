@@ -138,7 +138,13 @@ if not has_data:
         st.rerun()
 
 if "df" in st.session_state and not st.session_state["df"].empty:
-    df_raw = st.session_state["df"]
+    from modules.database import get_database_stats
+    _db_check = get_database_stats()
+    if _db_check.get("total_records", 0) == 0:
+        st.session_state.pop("df", None)
+        st.rerun()
+
+if "df" in st.session_state and not st.session_state["df"].empty:
 
     _port_ref = load_port_reference("data/port_code.xlsx")
     port_name_map = _port_ref.drop_duplicates(subset="KODE").set_index("KODE")["PELABUHAN"].to_dict() if not _port_ref.empty else {}

@@ -79,13 +79,18 @@ with st.sidebar:
     db_info = get_db_status_info()
     st.markdown("**Status Database**")
     st.success(f"{db_info['label']}")
-        
+
     if "df" in st.session_state and not st.session_state["df"].empty:
-        st.markdown("**Data Sesi Analisis**")
-        st.info(f"📌 {len(st.session_state['df']):,} record dimuat")
-        if st.button("🗑️ Hapus Data Sesi", width="stretch"):
+        _db_stats_check = get_database_stats()
+        if _db_stats_check.get("total_records", 0) == 0:
             st.session_state.pop("df", None)
             st.rerun()
+        else:
+            st.markdown("**Data Sesi Analisis**")
+            st.info(f"📌 {len(st.session_state['df']):,} record dimuat")
+            if st.button("🗑️ Hapus Data Sesi", width="stretch"):
+                st.session_state.pop("df", None)
+                st.rerun()
 
 # ── Header ────────────────────────────────────────────────────
 st.markdown("# 🗄️ Live Database Viewer & Downloader")

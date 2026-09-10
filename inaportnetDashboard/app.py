@@ -132,6 +132,14 @@ with st.sidebar:
 
     # Status data di sesi
     st.markdown("**Data Sesi**")
+    from modules.database import get_database_stats
+
+    if "df" in st.session_state and not st.session_state["df"].empty:
+        _db_check = get_database_stats()
+        if _db_check.get("total_records", 0) == 0:
+            st.session_state.pop("df", None)
+            st.rerun()
+
     if "df" in st.session_state and not st.session_state["df"].empty:
         n = len(st.session_state["df"])
         st.markdown(f'<span class="status-ok">✅ {n:,} record dimuat</span>', unsafe_allow_html=True)
