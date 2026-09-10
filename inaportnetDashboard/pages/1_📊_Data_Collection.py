@@ -1,7 +1,7 @@
 """
 pages/1_📊_Data_Collection.py
 Halaman pengumpulan data: scraping Inaportnet, upload file eksternal,
-load dari Supabase, dan ekspor data.
+load dari database SQLite, dan ekspor data.
 """
 
 import streamlit as st
@@ -12,9 +12,9 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
-    is_supabase_connected, get_db_status_info, deduplicate_dataframe,
-    delete_all_supabase_records, delete_all_sqlite_records,
-    set_supabase_credentials
+    get_database_stats, deduplicate_dataframe,
+    delete_all_sqlite_records,
+
 )
 from modules.theme import render_theme_selector
 
@@ -64,10 +64,10 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                               label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-    st.page_link("pages/2_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
-    st.page_link("pages/3_📋_Service_Performance.py",    label="📋 Service Performance")
-    st.page_link("pages/4_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/5_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+    st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
+    st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
+    st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
+    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
     db_info = get_db_status_info()
@@ -99,7 +99,7 @@ port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} 
 # ════════════════════════════════════════════════════════════════
 # TAB LAYOUT
 # ════════════════════════════════════════════════════════════════
-tab_scrape, tab_upload, tab_supabase, tab_export = st.tabs([
+tab_scrape, tab_upload, tab_db, tab_export = st.tabs([
     "🌐 Scraping",
     "📁 Upload File",
     "🗄️ Load dari Database",
@@ -180,7 +180,7 @@ with tab_scrape:
     scrape_db_source = "supabase" if "Supabase" in scrape_save_target else "sqlite"
 
     # ── Jika pilih Supabase tapi belum terhubung, minta credential ──
-    if scrape_db_source == "supabase" and not is_supabase_connected():
+    if False:
         st.info("🔗 Masukkan kredensial Supabase untuk melanjutkan.")
         sb_col1, sb_col2 = st.columns(2)
         with sb_col1:
@@ -190,7 +190,7 @@ with tab_scrape:
         if sb_url and sb_key:
             if st.button("🔌 Hubungkan Supabase", key="btn_scrape_sb_connect"):
                 with st.spinner("Menghubungkan..."):
-                    if set_supabase_credentials(sb_url, sb_key):
+                    if None:
                         st.success("✅ Supabase terhubung!")
                         st.rerun()
                     else:
@@ -290,9 +290,9 @@ with tab_scrape:
                 st.toast("✅ Scraping dan pemrosesan data berhasil!", icon="🎉")
                 result_area.dataframe(df_processed.head(10), width="stretch")
 
-                db_target = "Supabase Cloud" if scrape_db_source == "supabase" else "SQLite (Lokal)"
+                db_target = "SQLite (Lokal)"
                 with st.spinner(f"Menyimpan ke {db_target}..."):
-                    res = insert_pkk_records(df_processed, source=scrape_db_source)
+                    res = insert_pkk_records(df_processed)
                 if res["success"]:
                     st.success(f"💾 **{res['inserted']:,} record** tersimpan ke {db_target}.")
                     st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
@@ -403,7 +403,7 @@ with tab_upload:
                 )
                 upload_db_source = "supabase" if "Supabase" in upload_save_target else "sqlite"
 
-                if upload_db_source == "supabase" and not is_supabase_connected():
+                if False:
                     st.info("🔗 Masukkan kredensial Supabase untuk melanjutkan.")
                     ub_col1, ub_col2 = st.columns(2)
                     with ub_col1:
@@ -413,7 +413,7 @@ with tab_upload:
                     if ub_url and ub_key:
                         if st.button("🔌 Hubungkan Supabase", key="btn_upload_sb_connect"):
                             with st.spinner("Menghubungkan..."):
-                                if set_supabase_credentials(ub_url, ub_key):
+                                if None:
                                     st.success("✅ Supabase terhubung!")
                                     st.rerun()
                                 else:
@@ -449,7 +449,7 @@ with tab_upload:
                         st.info(f"🧹 **{n_dups:,} record duplikat** dibersihkan dari file.")
                     st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
-                    db_target = "Supabase Cloud" if upload_db_source == "supabase" else "SQLite (Lokal)"
+                    db_target = "SQLite (Lokal)"
                     db_status = st.empty()
                     db_progress = st.progress(0)
 
@@ -462,7 +462,7 @@ with tab_upload:
                             f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 3000, 1))} detik"
                         )
 
-                    res = insert_pkk_records(df_final, batch_size=2500, progress_callback=db_progress_cb, source=upload_db_source)
+                    res = insert_pkk_records(df_final, batch_size=2500, progress_callback=db_progress_cb)
 
                     db_status.empty()
                     db_progress.empty()
@@ -484,7 +484,7 @@ with tab_upload:
 # ────────────────────────────────────────────────────────────────
 # TAB 3 — LOAD DARI SUPABASE
 # ────────────────────────────────────────────────────────────────
-with tab_supabase:
+with tab_db:
     st.markdown('<div class="section-header">🗄️ Muat Data dari Database</div>', unsafe_allow_html=True)
     db_info = get_db_status_info()
     st.info(f"ℹ️ **Database Aktif:** {db_info['label']}")
@@ -493,19 +493,19 @@ with tab_supabase:
 
     with col_src:
         db_source_options = ["Otomatis"]
-        if is_supabase_connected():
-            db_source_options.append("Supabase Cloud")
+        if False:
+            pass  # Supabase removed
         db_source_options.append("SQLite (Lokal)")
 
         db_source = st.selectbox(
             "🗄️ Sumber Data",
             options=db_source_options,
             key="db_source_selector",
-            help="Otomatis: pilih Supabase jika terhubung, SQLite jika tidak."
+            help="Load dari database SQLite lokal."
         )
         db_source_code = None
-        if db_source == "Supabase Cloud":
-            db_source_code = "supabase"
+        if False:
+            db_source_code = "sqlite"
         elif db_source == "SQLite (Lokal)":
             db_source_code = "sqlite"
 
@@ -542,7 +542,7 @@ with tab_supabase:
 
         if df_db.empty:
             st.warning(f"⚠️ Tidak ada data ditemukan di {actual_source_label} dengan filter tersebut.")
-            if db_source_code == "supabase" or (db_source_code is None and is_supabase_connected()):
+            if db_source_code == "supabase" or (db_source_code is None and False):
                 with st.expander("🔍 Debug: Detail Query Supabase"):
                     st.code(
                         f"port_codes: {filter_codes_db if filter_codes_db else '(semua)'}\n"
@@ -551,11 +551,11 @@ with tab_supabase:
                         f"source: {db_source_code or 'auto'}"
                     )
                     st.caption("Pastikan data di Supabase memiliki kolom 'year' dengan nilai yang sesuai.")
-                    if st.button("🔍 Debug: Lihat Semua Data (Tanpa Filter)", key="debug_supabase_all"):
+                    if st.button("🔍 Debug: Lihat Semua Data (Tanpa Filter)", key="debug_sqlite_all"):
                         with st.spinner("Query tanpa filter ke Supabase..."):
-                            df_all = fetch_pkk_records(source="supabase")
+                            df_all = fetch_pkk_records()
                         if df_all.empty:
-                            st.error("❌ Supabase kosong atau koneksi gagal.")
+                            st.error("❌ Database kosong atau koneksi gagal.")
                         else:
                             st.success(f"✅ Supabase punya {len(df_all):,} record total.")
                             st.dataframe(df_all.head(5), width="stretch")
@@ -596,7 +596,7 @@ with tab_supabase:
     ):
         with st.spinner("Menghapus data..."):
             if del_target == "Supabase Cloud":
-                res = delete_all_supabase_records()
+                res = delete_all_sqlite_records()
             else:
                 res = delete_all_sqlite_records()
 

@@ -1,6 +1,6 @@
 """
-pages/5_🗄️_Database_Viewer.py
-Halaman penjelajah database Supabase secara langsung (Live Database Viewer)
+pages/2_🗄️_Database_Viewer.py
+Halaman penjelajah database SQLite secara langsung (Live Database Viewer)
 dan opsi pengunduhan data dalam berbagai format (CSV, Excel, JSON, SQL).
 """
 
@@ -8,7 +8,7 @@ import io
 import streamlit as st
 import pandas as pd
 from modules.database import (
-    is_connected, is_supabase_connected, get_db_status_info, get_database_stats, fetch_pkk_records_paginated,
+    is_connected, get_database_stats, fetch_pkk_records_paginated,
     fetch_pkk_records, get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
 )
 from modules.theme import render_theme_selector
@@ -69,10 +69,10 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                               label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-    st.page_link("pages/2_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
-    st.page_link("pages/3_📋_Service_Performance.py",    label="📋 Service Performance")
-    st.page_link("pages/4_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/5_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+    st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
+    st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
+    st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
+    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
     
@@ -94,14 +94,14 @@ with st.sidebar:
 
 # ── Header ────────────────────────────────────────────────────
 st.markdown("# 🗄️ Live Database Viewer & Downloader")
-st.markdown("Inspeksi langsung database (Supabase / SQLite) secara real-time, lakukan pencarian/filter, dan unduh database dalam berbagai format.")
+st.markdown("Inspeksi langsung database (SQLite) secara real-time, lakukan pencarian/filter, dan unduh database dalam berbagai format.")
 
 # ── Deduplication Dialog Modal ────────────────────────────────
 if hasattr(st, "dialog"):
-    @st.dialog("🧹 Deteksi & Pembersihan Duplikasi Data Supabase")
+    @st.dialog("🧹 Deteksi & Pembersihan Duplikasi Data SQLite")
     def render_dedup_dialog():
         st.markdown(
-            "Sistem akan mendeteksi data yang telah di-scrap dan tersimpan di Supabase, "
+            "Sistem akan mendeteksi data yang telah di-scrap dan tersimpan di SQLite, "
             "menghitung duplikasi record (`PKK_number`), dan menghapusnya sebelum Live View dijalankan."
         )
         status_box = st.empty()
@@ -130,7 +130,7 @@ if hasattr(st, "dialog"):
                 st.rerun()
 else:
     def render_dedup_dialog():
-        with st.spinner("Mendeteksi & menghapus duplikasi data di Supabase..."):
+        with st.spinner("Mendeteksi & menghapus duplikasi data di SQLite..."):
             res = check_and_clean_db_duplicates()
         if res["success"]:
             st.success(f"✅ Pembersihan selesai! {res['duplicates_removed']:,} record duplikat dihapus.")
@@ -162,8 +162,8 @@ port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} 
 st.markdown('<div class="section-header">🗄️ Sumber Database</div>', unsafe_allow_html=True)
 
 db_source_options = ["📦 SQLite (Lokal)"]
-if is_supabase_connected():
-    db_source_options.append("☁️ Supabase Cloud")
+if False:
+    pass  # Supabase removed
 
 db_source = st.radio(
     "Pilih Sumber Data",
@@ -171,7 +171,7 @@ db_source = st.radio(
     horizontal=True,
     key="db_viewer_source",
 )
-db_source_code = "supabase" if "Supabase" in db_source else "sqlite"
+db_source_code = "sqlite"
 
 # ── DB Ringkasan Metrik ────────────────────────────────────────
 db_stats = get_database_stats(source=db_source_code)
@@ -202,7 +202,7 @@ with c3:
     </div>
     """, unsafe_allow_html=True)
 with c4:
-    db_server_label = "Supabase Cloud" if db_source_code == "supabase" else "SQLite Local"
+    db_server_label = "SQLite Local"
     st.markdown(f"""
     <div class="metric-card">
         <div class="val">Active</div>
@@ -288,7 +288,7 @@ with col_stat_info:
     )
 
 with col_btn_dedup:
-    if st.button("🧹 Bersihkan Duplikat", type="secondary", width="stretch", help="Deteksi dan hapus duplikasi data di Supabase"):
+    if st.button("🧹 Bersihkan Duplikat", type="secondary", width="stretch", help="Deteksi dan hapus duplikasi data di SQLite"):
         render_dedup_dialog()
 
 with col_btn_load:
@@ -302,8 +302,8 @@ with col_btn_load:
 if total_filtered_count == 0 or df_db_view.empty:
     st.warning("⚠️ **Database Kosong atau Tidak Ada Data Terfilter**")
     st.info(
-        "💡 **Petunjuk:** Jika Supabase baru dikonfigurasi dan masih kosong, silakan buka halaman "
-        "**📊 Data Collection** lalu jalankan **Mulai Scraping** atau **Upload File** (pastikan centang 'Simpan otomatis ke Supabase') "
+        "💡 **Petunjuk:** Jika database SQLite dan masih kosong, silakan buka halaman "
+        "**📊 Data Collection** lalu jalankan **Mulai Scraping** atau **Upload File** (pastikan centang 'Simpan otomatis ke SQLite') "
         "agar data tersimpan ke database."
     )
 else:
@@ -347,7 +347,7 @@ scope_option = st.radio(
     "🎯 Lingkup Data Unduhan:",
     options=[
         f"📄 Hanya Data di Halaman Ini ({len(df_db_view):,} record)",
-        f"🌐 Seluruh Data Terfilter dari Supabase ({total_filtered_count:,} record)",
+        f"🌐 Seluruh Data Terfilter dari SQLite ({total_filtered_count:,} record)",
     ],
     index=0,
     horizontal=True,

@@ -2,8 +2,7 @@
 app.py — Halaman Utama Inaportnet Analytics Dashboard
 """
 
-import streamlit as st
-from modules.database import is_connected, get_db_status_info
+from modules.database import is_connected, get_database_stats
 from modules.theme import render_theme_selector
 
 # ──────────────────────────────────────────────────────────────
@@ -113,10 +112,10 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                                      label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",               label="📊 Data Collection")
-    st.page_link("pages/2_🚦_Traffic_Overview.py",              label="🚦 Traffic Overview")
-    st.page_link("pages/3_📋_Service_Performance.py",           label="📋 Service Performance")
-    st.page_link("pages/4_🗺️_Port_Classification.py",           label="🗺️ Port Classification")
-    st.page_link("pages/5_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
+    st.page_link("pages/3_🚦_Traffic_Overview.py",              label="🚦 Traffic Overview")
+    st.page_link("pages/4_📋_Service_Performance.py",           label="📋 Service Performance")
+    st.page_link("pages/5_🗺️_Port_Classification.py",           label="🗺️ Port Classification")
+    st.page_link("pages/2_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",          label="🛡️ Fraud Risk Screening")
     st.markdown("---")
 
@@ -125,10 +124,7 @@ with st.sidebar:
     db_info = get_db_status_info()
     st.markdown(f'<span class="{db_info["badge_class"]}">{db_info["label"]}</span>', unsafe_allow_html=True)
 
-    # Tombol konfigurasi Supabase (jika belum terhubung)
-    if db_info["mode"] == "sqlite":
-        if st.button("⚙️ Konfigurasi Supabase", use_container_width=True, type="primary"):
-            st.session_state["show_supabase_modal"] = True
+    # SQLite Lokal
 
     # Status data di sesi
     st.markdown("**Data Sesi**")
@@ -255,25 +251,25 @@ nav_pages = [
         "desc":  "Scraping, upload data, load dari database, dan ekspor",
     },
     {
-        "page":  "pages/2_🚦_Traffic_Overview.py",
+        "page":  "pages/3_🚦_Traffic_Overview.py",
         "icon":  "🚦",
         "title": "Traffic Overview",
         "desc":  "Volume, tren per kuartal, bulan, hari, dan jam",
     },
     {
-        "page":  "pages/3_📋_Service_Performance.py",
+        "page":  "pages/4_📋_Service_Performance.py",
         "icon":  "📋",
         "title": "Service Performance",
         "desc":  "Distribusi waktu approval, SLA compliance, dan tren",
     },
     {
-        "page":  "pages/4_🗺️_Port_Classification.py",
+        "page":  "pages/5_🗺️_Port_Classification.py",
         "icon":  "🗺️",
         "title": "Port Classification",
         "desc":  "Analisis kuadran dan ranking composite index",
     },
     {
-        "page":  "pages/5_🗄️_Database_Viewer.py",
+        "page":  "pages/2_🗄️_Database_Viewer.py",
         "icon":  "🗄️",
         "title": "Database Viewer",
         "desc":  "Inspeksi database live, pencarian, dan unduh CSV/Excel/JSON/SQL",
@@ -311,8 +307,8 @@ with col_how:
     steps = [
         ("1", "Buka halaman **📊 Data Collection**"),
         ("2", "Pilih pelabuhan, tahun, dan jenis angkutan"),
-        ("3", "Klik **Mulai Scraping** atau upload file / load dari Supabase"),
-        ("4", "Data otomatis tersimpan ke Supabase dan session"),
+        ("3", "Klik **Mulai Scraping** atau upload file atau muat dari database SQLite"),
+        ("4", "Data otomatis tersimpan ke SQLite lokal dan session"),
         ("5", "Jelajahi analisis di halaman **Traffic**, **SLA**, dan **Klasifikasi**"),
         ("6", "Ekspor hasil analisis ke CSV atau Excel"),
     ]
@@ -332,62 +328,6 @@ with col_info:
         "**Layanan:** PKK (Persetujuan Kegiatan Kapal)\n\n"
         "**SLA:** Persetujuan dalam ≤ 30 menit"
     )
-    st.warning(
-        "⚠️ **Konfigurasi Supabase**\n\n"
-        "Untuk menyimpan data ke database cloud, buka halaman **📊 Data Collection** "
-        "→ klik **⚙️ Settings** di sidebar → masukkan **Supabase URL** dan **API Key**."
-    )
-
-# ──────────────────────────────────────────────────────────────
-# Supabase Connection Modal
-# ──────────────────────────────────────────────────────────────
-if st.session_state.get("show_supabase_modal", False):
-    with st.expander("⚙️ Konfigurasi Koneksi Supabase", expanded=True):
-        st.info(
-            "Masukkan kredensial Supabase Anda. Dapatkan dari dashboard Supabase → Settings → API."
-        )
-        col1, col2 = st.columns(2)
-        with col1:
-            supabase_url = st.text_input(
-                "Supabase URL",
-                value=st.session_state.get("supabase_url", ""),
-                placeholder="https://xxxxx.supabase.co",
-            )
-        with col2:
-            supabase_key = st.text_input(
-                "Supabase Anon Key",
-                value=st.session_state.get("supabase_key", ""),
-                type="password",
-                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            )
-
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
-        with col_btn1:
-            if st.button("🔌 Hubungkan", type="primary", use_container_width=True):
-                if not supabase_url or not supabase_key:
-                    st.error("❌ URL dan Key harus diisi.")
-                else:
-                    from modules.database import set_supabase_credentials
-                    with st.spinner("Menghubungkan ke Supabase..."):
-                        if set_supabase_credentials(supabase_url, supabase_key):
-                            st.success("✅ Berhasil terhubung ke Supabase!")
-                            st.toast("✅ Supabase terhubung!", icon="✅")
-                            st.session_state["show_supabase_modal"] = False
-                            st.rerun()
-                        else:
-                            st.error("❌ Gagal terhubung. Periksa URL dan Key.")
-        with col_btn2:
-            if st.button("❌ Tutup", use_container_width=True):
-                st.session_state["show_supabase_modal"] = False
-                st.rerun()
-        with col_btn3:
-            if st.session_state.get("supabase_connected"):
-                if st.button("🔌 Putuskan", use_container_width=True):
-                    from modules.database import clear_supabase_credentials
-                    clear_supabase_credentials()
-                    st.success("✅ Koneksi diputus.")
-                    st.toast("🔌 Koneksi diputus.", icon="🔌")
-                    st.rerun()
 
 # ──────────────────────────────────────────────────────────────
 # Developer Footer & Buy Coffee Section
