@@ -20,6 +20,7 @@ workfiles/
 workfiles/*
 */backup/
 */.report_logs
+*/scripts_new/*
 
 # ==========================================
 # 3. Python & Virtual Environments

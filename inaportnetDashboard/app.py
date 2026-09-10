@@ -330,7 +330,6 @@ with col_info:
         "**Sumber Data:** Portal Monitoring Inaportnet\n\n"
         "https://monitoring-inaportnet.dephub.go.id\n\n"
         "**Layanan:** PKK (Persetujuan Kegiatan Kapal)\n\n"
-        "**Cakupan:** 259 pelabuhan di seluruh Indonesia\n\n"
         "**SLA:** Persetujuan dalam ≤ 30 menit"
     )
     st.warning(
