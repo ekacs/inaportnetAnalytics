@@ -374,6 +374,21 @@ def get_available_ports_from_db() -> List[str]:
 # DEDUPLICATION
 # ──────────────────────────────────────────────────────────────
 
+def deduplicate_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Menghapus duplikasi record dari DataFrame berdasarkan pkk_number."""
+    if df.empty:
+        return df, 0
+
+    col_pkk = "PKK_number" if "PKK_number" in df.columns else ("pkk_number" if "pkk_number" in df.columns else None)
+    if not col_pkk:
+        return df, 0
+
+    initial_len = len(df)
+    df_clean = df.drop_duplicates(subset=[col_pkk], keep="last").reset_index(drop=True)
+    dup_count = initial_len - len(df_clean)
+    return df_clean, dup_count
+
+
 def check_and_clean_db_duplicates(progress_callback=None) -> dict:
     """Deteksi dan hapus duplikasi data berdasarkan pkk_number di SQLite."""
     try:
