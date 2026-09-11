@@ -112,10 +112,10 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                                      label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",               label="📊 Data Collection")
-    st.page_link("pages/3_🚦_Traffic_Overview.py",              label="🚦 Traffic Overview")
-    st.page_link("pages/4_📋_Service_Performance.py",           label="📋 Service Performance")
-    st.page_link("pages/5_🗺️_Port_Classification.py",           label="🗺️ Port Classification")
-    st.page_link("pages/2_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
+    st.page_link("pages/2_🗄️_Database_Viewer.py", label="🗄️ Database Viewer")
+    st.page_link("pages/3_🚦_Traffic_Overview.py", label="🚦 Traffic Overview")
+    st.page_link("pages/4_📋_Service_Performance.py", label="📋 Service Performance")
+    st.page_link("pages/5_🗺️_Port_Classification.py", label="🗺️ Port Classification")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",          label="🛡️ Fraud Risk Screening")
     st.markdown("---")
 
@@ -250,31 +250,31 @@ nav_pages = [
         "title": "Data Collection",
         "desc":  "Scraping, upload data, load dari database, dan ekspor",
     },
-    {
-        "page":  "pages/3_🚦_Traffic_Overview.py",
-        "icon":  "🚦",
-        "title": "Traffic Overview",
-        "desc":  "Volume, tren per kuartal, bulan, hari, dan jam",
-    },
-    {
-        "page":  "pages/4_📋_Service_Performance.py",
-        "icon":  "📋",
-        "title": "Service Performance",
-        "desc":  "Distribusi waktu approval, SLA compliance, dan tren",
-    },
-    {
-        "page":  "pages/5_🗺️_Port_Classification.py",
-        "icon":  "🗺️",
-        "title": "Port Classification",
-        "desc":  "Analisis kuadran dan ranking composite index",
-    },
-    {
+{
         "page":  "pages/2_🗄️_Database_Viewer.py",
         "icon":  "🗄️",
         "title": "Database Viewer",
         "desc":  "Inspeksi database live, pencarian, dan unduh CSV/Excel/JSON/SQL",
     },
-    {
+{
+        "page":  "pages/3_🚦_Traffic_Overview.py",
+        "icon":  "🚦",
+        "title": "Traffic Overview",
+        "desc":  "Volume, tren per kuartal, bulan, hari, dan jam",
+    },
+{
+        "page":  "pages/4_📋_Service_Performance.py",
+        "icon":  "📋",
+        "title": "Service Performance",
+        "desc":  "Distribusi waktu approval, SLA compliance, dan tren",
+    },
+{
+        "page":  "pages/5_🗺️_Port_Classification.py",
+        "icon":  "🗺️",
+        "title": "Port Classification",
+        "desc":  "Analisis kuadran dan ranking composite index",
+    },
+{
         "page":  "pages/6_🛡️_Fraud_Risk_Screening.py",
         "icon":  "🛡️",
         "title": "Fraud Risk Screening",

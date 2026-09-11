@@ -69,10 +69,10 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                               label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
+    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
     st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
     st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
     
@@ -174,7 +174,7 @@ db_source = st.radio(
 db_source_code = "sqlite"
 
 # ── DB Ringkasan Metrik ────────────────────────────────────────
-db_stats = get_database_stats(source=db_source_code)
+db_stats = get_database_stats()
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
@@ -272,8 +272,7 @@ with st.spinner(f"Mengambil data dari {db_source}..."):
         search_query=search_q,
         limit=page_size,
         offset=offset_val,
-        source=db_source_code,
-    )
+            )
 
 total_pages = max(1, (total_filtered_count + page_size - 1) // page_size)
 
@@ -359,8 +358,7 @@ if scope_option.startswith("🌐"):
             port_codes=selected_port_codes if selected_port_codes else None,
             year=year_sel,
             angkutan=angkutan_codes if len(angkutan_codes) == 1 else None,
-            source=db_source_code,
-        )
+                    )
 else:
     df_download = df_db_view.copy()
 
@@ -416,7 +414,7 @@ else:
     # 4. Download SQL Dump
     with col_dl4:
         st.markdown("#### 🗄️ Format SQL Dump")
-        sql_dump = generate_sql_dump(df_download)
+        sql_dump = generate_sql_dump()
         st.download_button(
             label="⬇️ Download SQL Dump",
             data=sql_dump.encode("utf-8"),

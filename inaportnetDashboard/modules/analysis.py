@@ -4,6 +4,7 @@ Semua fungsi analisis data PKK Inaportnet.
 Refactoring dari scripts 02, 03, 04, service_level.py, service_performance.py, traffic_analysis.py.
 """
 
+import streamlit as st
 import pandas as pd
 import numpy as np
 from typing import Optional, Tuple
@@ -19,6 +20,7 @@ EXTREME_DELAY_MINUTES = 102  # Ambang keterlambatan ekstrem
 # TRAFFIC ANALYSIS
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data
 def get_national_stats(df: pd.DataFrame) -> dict:
     """Statistik ringkasan nasional."""
     if df.empty:
@@ -34,6 +36,7 @@ def get_national_stats(df: pd.DataFrame) -> dict:
     }
 
 
+@st.cache_data
 def get_port_volume(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     """Volume PKK per pelabuhan, diurutkan descending."""
     if df.empty:
@@ -51,6 +54,7 @@ def get_port_volume(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     return grp.reset_index(drop=True)
 
 
+@st.cache_data
 def get_trend_quarterly(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per kuartal."""
     if df.empty or "quarter" not in df.columns:
@@ -63,6 +67,7 @@ def get_trend_quarterly(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+@st.cache_data
 def get_trend_monthly(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per bulan."""
     if df.empty or "month" not in df.columns:
@@ -82,6 +87,7 @@ def get_trend_monthly(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+@st.cache_data
 def get_trend_daily(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per hari dalam seminggu."""
     if df.empty or "day" not in df.columns:
@@ -92,6 +98,7 @@ def get_trend_daily(df: pd.DataFrame) -> pd.DataFrame:
     return result.sort_values("day")
 
 
+@st.cache_data
 def get_trend_hourly(df: pd.DataFrame) -> pd.DataFrame:
     """Tren volume per jam (0–23)."""
     if df.empty or "hour" not in df.columns:
@@ -105,6 +112,7 @@ def get_trend_hourly(df: pd.DataFrame) -> pd.DataFrame:
 # SERVICE PERFORMANCE & SLA
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data
 def get_service_distribution(df: pd.DataFrame) -> pd.DataFrame:
     """Distribusi waktu persetujuan ke dalam kategori waktu."""
     if df.empty or "approval_hours" not in df.columns:
@@ -129,6 +137,7 @@ def get_service_distribution(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+@st.cache_data
 def get_top_longest_approval(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     """Top N pelabuhan dengan rata-rata waktu persetujuan terlama."""
     if df.empty or "approval_minutes" not in df.columns:
@@ -150,6 +159,7 @@ def get_top_longest_approval(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     )
 
 
+@st.cache_data
 def get_sla_compliance_by_port(df: pd.DataFrame, sla_minutes: float = SLA_THRESHOLD_MINUTES) -> pd.DataFrame:
     """SLA compliance rate per pelabuhan."""
     if df.empty or "approval_minutes" not in df.columns:
@@ -170,6 +180,7 @@ def get_sla_compliance_by_port(df: pd.DataFrame, sla_minutes: float = SLA_THRESH
     return result.sort_values("compliance_rate", ascending=True)
 
 
+@st.cache_data
 def get_sla_trend_monthly(df: pd.DataFrame, sla_minutes: float = SLA_THRESHOLD_MINUTES) -> pd.DataFrame:
     """Tren SLA compliance per bulan."""
     if df.empty or "month" not in df.columns:

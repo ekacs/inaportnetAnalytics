@@ -1,3 +1,4 @@
+import streamlit as st
 """
 modules/visualization.py
 Semua fungsi visualisasi menggunakan Plotly untuk Streamlit.
@@ -51,6 +52,7 @@ def _base_layout(fig: go.Figure, title: str = "", height: int = 400) -> go.Figur
 # TRAFFIC CHARTS
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data
 def plot_volume_donut(df_volume: pd.DataFrame) -> go.Figure:
     """
     Donut chart top 10 pelabuhan berdasarkan volume PKK + 'Lainnya'.
@@ -92,6 +94,7 @@ def plot_volume_donut(df_volume: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_trend_quarterly(df: pd.DataFrame) -> go.Figure:
     """Bar chart tren volume per kuartal."""
     if df.empty:
@@ -114,6 +117,7 @@ def plot_trend_quarterly(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_trend_monthly(df: pd.DataFrame) -> go.Figure:
     """Bar chart tren volume per bulan."""
     if df.empty:
@@ -139,6 +143,7 @@ def plot_trend_monthly(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_trend_daily(df: pd.DataFrame) -> go.Figure:
     """Bar chart tren volume per hari dalam seminggu."""
     if df.empty:
@@ -164,6 +169,7 @@ def plot_trend_daily(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_trend_hourly(df: pd.DataFrame) -> go.Figure:
     """Bar chart tren volume per jam (jam kerja dihighlight)."""
     if df.empty:
@@ -191,6 +197,7 @@ def plot_trend_hourly(df: pd.DataFrame) -> go.Figure:
 # SERVICE PERFORMANCE CHARTS
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data
 def plot_service_distribution(df_dist: pd.DataFrame) -> go.Figure:
     """Donut chart distribusi kategori waktu persetujuan."""
     if df_dist.empty:
@@ -226,6 +233,7 @@ def plot_service_distribution(df_dist: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_approval_histogram(df: pd.DataFrame) -> go.Figure:
     """Histogram distribusi waktu persetujuan (< P95)."""
     if df.empty or "approval_minutes" not in df.columns:
@@ -255,6 +263,7 @@ def plot_approval_histogram(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_top_longest_approval(df_top: pd.DataFrame) -> go.Figure:
     """Horizontal bar chart pelabuhan dengan waktu persetujuan terlama."""
     if df_top.empty:
@@ -278,6 +287,7 @@ def plot_top_longest_approval(df_top: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_sla_compliance_bar(df_sla: pd.DataFrame, top_n: int = 20) -> go.Figure:
     """Horizontal bar chart SLA compliance rate per pelabuhan."""
     if df_sla.empty:
@@ -308,6 +318,7 @@ def plot_sla_compliance_bar(df_sla: pd.DataFrame, top_n: int = 20) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_sla_trend(df_trend: pd.DataFrame) -> go.Figure:
     """Line chart tren SLA compliance per bulan."""
     if df_trend.empty:
@@ -337,6 +348,7 @@ def plot_sla_trend(df_trend: pd.DataFrame) -> go.Figure:
 # PORT CLASSIFICATION CHARTS
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data
 def plot_quadrant_scatter(df: pd.DataFrame) -> go.Figure:
     """
     Scatter plot kuadran interaktif (volume log × composite index).
@@ -406,6 +418,7 @@ def plot_quadrant_scatter(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_performance_ranking(df: pd.DataFrame, top_n: int = 20) -> go.Figure:
     if df.empty or "composite_index" not in df.columns:
         return go.Figure()
@@ -440,6 +453,7 @@ def plot_performance_ranking(df: pd.DataFrame, top_n: int = 20) -> go.Figure:
 # FRAUD RISK SCREENING & CFRSI CHARTS
 # ══════════════════════════════════════════════════════════════
 
+@st.cache_data
 def plot_volume_vs_red_flag_percentage(cfrsi_df: pd.DataFrame) -> go.Figure:
     """
     Scatter plot Transaksi Volume vs Persentase Red Flag per Pelabuhan.
@@ -496,6 +510,7 @@ def plot_volume_vs_red_flag_percentage(cfrsi_df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_red_flag_breakdown(df_analyzed: pd.DataFrame) -> go.Figure:
     """
     Donut chart rincian 5 kriteria Red Flag (Quick Approval, Long Duration, Low Oversight, GT, Same Vessel).
@@ -532,6 +547,7 @@ def plot_red_flag_breakdown(df_analyzed: pd.DataFrame) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def plot_cfrsi_port_ranking(cfrsi_df: pd.DataFrame, top_n: int = 15) -> go.Figure:
     """
     Horizontal bar chart ranking Top N pelabuhan berdasarkan skor CFRSI.
@@ -574,6 +590,7 @@ def plot_cfrsi_port_ranking(cfrsi_df: pd.DataFrame, top_n: int = 15) -> go.Figur
     return fig
 
 
+@st.cache_data
 def plot_subindices_breakdown(cfrsi_df: pd.DataFrame, top_n: int = 10) -> go.Figure:
     """
     Grouped bar chart perbandingan 3 sub-indeks (Rule-based, Statistical, ML) untuk Top N Pelabuhan.
@@ -612,6 +629,7 @@ def plot_subindices_breakdown(cfrsi_df: pd.DataFrame, top_n: int = 10) -> go.Fig
     return fig
 
 
+@st.cache_data
 def plot_risk_category_distribution(cfrsi_df: pd.DataFrame) -> go.Figure:
     """
     Grouped bar chart perbandingan distribusi kategori risiko (Percentile vs Fixed Scale).

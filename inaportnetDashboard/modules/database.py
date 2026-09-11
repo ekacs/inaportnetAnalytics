@@ -47,6 +47,7 @@ def init_sqlite_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkk_port_code ON pkk_records(port_code);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkk_year ON pkk_records(year);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkk_submission ON pkk_records(submission);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkk_number ON pkk_records(pkk_number);")
     conn.commit()
     conn.close()
 

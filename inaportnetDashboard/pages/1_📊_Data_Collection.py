@@ -5,6 +5,7 @@ load dari database SQLite, dan ekspor data.
 """
 
 import streamlit as st
+import time
 import pandas as pd
 import io
 import zipfile
@@ -64,15 +65,31 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                               label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
+    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
     st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
     st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
     db_info = get_db_status_info()
     st.markdown("**Status Database**")
     st.success(f"{db_info['label']}")
+
+
+    # ── Database info ──
+    import modules.database as _db_mod
+    import sqlite3 as _sqlite3
+    _db_path = _db_mod.SQLITE_DB_PATH
+    if os.path.exists(_db_path):
+        _conn = _sqlite3.connect(_db_path)
+        _cur = _conn.cursor()
+        _cur.execute("SELECT COUNT(*) FROM pkk_records")
+        _total = _cur.fetchone()[0]
+        _conn.close()
+        _est = _total / 150000
+        _est_txt = f"~{_est:.0f} detik" if _est < 60 else f"~{_est/60:.1f} menit"
+        st.info(f"📦 **Database:** {_total:,} record | ⏱️ **Estimasi load:** {_est_txt} | 💡 *Data siap, page lain bisa dibuka.*")
+
 
     if "df" in st.session_state and not st.session_state["df"].empty:
         st.markdown("**Data Sesi**")
@@ -537,8 +554,7 @@ with tab_db:
                 port_codes=filter_codes_db if filter_codes_db else None,
                 year=year_db,
                 angkutan=angkutan_db_codes if len(angkutan_db_codes) < 2 else None,
-                source=db_source_code,
-            )
+                            )
 
         if df_db.empty:
             st.warning(f"⚠️ Tidak ada data ditemukan di {actual_source_label} dengan filter tersebut.")
@@ -564,6 +580,7 @@ with tab_db:
                             if "angkutan" in df_all.columns:
                                 st.write("Nilai 'angkutan' yang ada:", df_all["angkutan"].unique().tolist())
         else:
+            df_db = preprocess(df_db)
             st.session_state["df"] = df_db
             st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari {actual_source_label}.")
             with st.expander("🔍 Preview Data"):
