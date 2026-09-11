@@ -151,6 +151,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
 
     # Jalankan Analisis CFRSI & Deteksi Anomali
     with st.spinner("Mengoperasikan Engine Deteksi Anomali 3-Lapis (Rule-Based, OLS Z-Score, Isolation Forest)..."):
+        df_raw = st.session_state["df"]
         df_analyzed, cfrsi_df = compute_fraud_risk_analysis(df_raw)
 
     summary_stats = get_fraud_national_summary(df_analyzed, cfrsi_df)
