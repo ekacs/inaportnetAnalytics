@@ -12,7 +12,7 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
-    get_database_stats, deduplicate_dataframe,
+    get_database_stats, get_db_status_info, deduplicate_dataframe,
     delete_all_sqlite_records,
 
 )

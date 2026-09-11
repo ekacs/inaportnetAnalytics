@@ -8,7 +8,7 @@ import io
 import streamlit as st
 import pandas as pd
 from modules.database import (
-    is_connected, get_database_stats, fetch_pkk_records_paginated,
+    is_connected, get_database_stats, get_db_status_info, fetch_pkk_records_paginated,
     fetch_pkk_records, get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
 )
 from modules.theme import render_theme_selector
