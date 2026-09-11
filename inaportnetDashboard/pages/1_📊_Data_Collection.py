@@ -1,3 +1,4 @@
+import os
 """
 pages/1_📊_Data_Collection.py
 Halaman pengumpulan data: scraping Inaportnet, upload file eksternal,
