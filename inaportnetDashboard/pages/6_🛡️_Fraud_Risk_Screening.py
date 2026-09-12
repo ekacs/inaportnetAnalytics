@@ -194,11 +194,11 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     # ──────────────────────────────────────────────────────────────
     # Interactive Tabs
     # ──────────────────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "🏆 Composite Risk Index (CFRSI)",
         "🚨 Rule-Based Red Flags",
         "📐 Statistical & ML Anomalies",
-        "📜 Anti-Fraud Governance & Risk Tiers"
+    #    "📜 Anti-Fraud Governance & Risk Tiers"
     ])
 
     # ── TAB 1: CFRSI RANKING ──────────────────────────────────────
@@ -250,6 +250,39 @@ if "df" in st.session_state and not st.session_state["df"].empty:
             use_container_width=True,
             height=350
         )
+        st.markdown("---")
+        st.markdown("#### 🏛️ Penerapan 4 Pilar Strategi Anti-Fraud (OJK 2024 / Kemenhub)")
+        
+        g1, g2, g3, g4 = st.columns(4)
+        with g1:
+            st.markdown("""
+            <div style="background:#eaf2f8; padding:1rem; border-radius:10px; border-left:4px solid #2980b9;">
+                <h4 style="color:#1a4a7a; margin-top:0;">1. Pencegahan</h4>
+                <p style="font-size:0.85rem;">Standardisasi verifikasi dokumen digital & pembatasan akses sistem persetujuan otomatis di luar jam kerja.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with g2:
+            st.markdown("""
+            <div style="background:#fef9e7; padding:1rem; border-radius:10px; border-left:4px solid #f39c12;">
+                <h4 style="color:#7e5109; margin-top:0;">2. Deteksi</h4>
+                <p style="font-size:0.85rem;">Monitoring skor CFRSI real-time sebagai Early Warning System (EWS) untuk alokasi audit berbasis risiko.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with g3:
+            st.markdown("""
+            <div style="background:#fdedec; padding:1rem; border-radius:10px; border-left:4px solid #e74c3c;">
+                <h4 style="color:#780206; margin-top:0;">3. Investigasi</h4>
+                <p style="font-size:0.85rem;">Eskalasi pelabuhan kategori Risiko Tinggi ke Inspektorat Jenderal untuk verifikasi lapangan & penindakan.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with g4:
+            st.markdown("""
+            <div style="background:#eafaf1; padding:1rem; border-radius:10px; border-left:4px solid #27ae60;">
+                <h4 style="color:#196f3d; margin-top:0;">4. Evaluasi</h4>
+                <p style="font-size:0.85rem;">Umpan balik audit untuk re-kalibrasi threshold model & penanganan false-positive berulang.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
 
     # ── TAB 2: RULE-BASED RED FLAGS ──────────────────────────────
     with tab2:
@@ -284,18 +317,18 @@ if "df" in st.session_state and not st.session_state["df"].empty:
             st.markdown("#### 1. Statistical Outlier Detection (Modified Z-Score)")
             st.latex(r"T_i = \beta_0 + \beta_1 V + \beta_2 GT + \beta_3 D + \beta_4 H")
             st.latex(r"Z_i = 0.6745 \frac{r_i - \bar{r}}{\text{MAD}} \le -3.5")
-            st.write(f"• **Jumlah Outlier Residual ($Z \\le -3.5$):** {summary_stats.get('stat_pkk', 0):,} transaksi ({summary_stats.get('stat_pct', 0):.1f}%)")
+            st.write(f"• **Jumlah Outlier Residual ($Z \\le -3.5$ OR $Z \\ge 3.5$):** {summary_stats.get('stat_pkk', 0):,} transaksi ({summary_stats.get('stat_pct', 0):.1f}%)")
             st.caption("Menyoroti deviasi residual negatif yang ekstrem (persetujuan abnormal yang jauh lebih cepat dibanding ekspektasi kondisi operasional).")
-        if summary_stats.get("stat_pkk", 0) > 0:
-            _df_stat_outliers = cfrsi_df[cfrsi_df["is_stat_anomaly"] == True].copy()
-            _stat_csv = _df_stat_outliers.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "💾 Download Transaksi Outlier Statistik (.csv)",
-                _stat_csv,
-                file_name="transaksi_outlier_statistik.csv",
-                mime="text/csv",
-                key="dl_stat_outliers",
-            )
+            if summary_stats.get("stat_pkk", 0) > 0:
+                _df_stat_outliers = df_analyzed[df_analyzed["is_stat_anomaly"] == True].copy()
+                _stat_csv = _df_stat_outliers.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "💾 Download Transaksi Outlier Statistik (.csv)",
+                    _stat_csv,
+                    file_name="transaksi_outlier_statistik.csv",
+                    mime="text/csv",
+                    key="dl_stat_outliers",
+                )
 
         with st_col2:
             st.markdown("#### 2. Isolation Forest (Unsupervised ML)")
@@ -304,42 +337,52 @@ if "df" in st.session_state and not st.session_state["df"].empty:
             st.write("• **Features:** Log Approval Duration, Log GT, Log Port Volume, Hour")
             st.write(f"• **Jumlah Anomali Multidimensi Terisolasi:** {summary_stats.get('ml_pkk', 0):,} transaksi ({summary_stats.get('ml_pct', 0):.1f}%)")
             st.caption("Mendeteksi pola kombinasi fitur non-linear kompleks yang tidak terjangkau oleh aturan manual.")
+            if summary_stats.get("ml_pkk", 0) > 0:
+                _df_ml_outliers = df_analyzed[df_analyzed["is_ml_anomaly"] == True].copy()
+                _ml_csv = _df_ml_outliers.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "💾 Download Transaksi Anomali Multidimensi (.csv)",
+                    _ml_csv,
+                    file_name="transaksi_anomali_multidimensi.csv",
+                    mime="text/csv",
+                    key="dl_ml_outliers",
+                )
 
-    # ── TAB 4: GOVERNANCE & RISK TIERS ───────────────────────────
-    with tab4:
-        st.markdown("### 📜 Tata Kelola Anti-Fraud & Klasifikasi Risiko")
+    # # ── TAB 4: GOVERNANCE & RISK TIERS ───────────────────────────
+    # with tab4:
+    #     st.markdown("### 📜 Tata Kelola Anti-Fraud & Klasifikasi Risiko")
 
-        st.plotly_chart(plot_risk_category_distribution(cfrsi_df), use_container_width=True)
+    #     st.plotly_chart(plot_risk_category_distribution(cfrsi_df), use_container_width=True)
 
-        st.markdown("---")
-        st.markdown("#### 🏛️ Penerapan 4 Pilar Strategi Anti-Fraud (OJK 2024 / Kemenhub)")
+    #     st.markdown("---")
+    #     st.markdown("#### 🏛️ Penerapan 4 Pilar Strategi Anti-Fraud (OJK 2024 / Kemenhub)")
         
-        g1, g2, g3, g4 = st.columns(4)
-        with g1:
-            st.markdown("""
-            <div style="background:#eaf2f8; padding:1rem; border-radius:10px; border-left:4px solid #2980b9;">
-                <h4 style="color:#1a4a7a; margin-top:0;">1. Pencegahan</h4>
-                <p style="font-size:0.85rem;">Standardisasi verifikasi dokumen digital & pembatasan akses sistem persetujuan otomatis di luar jam kerja.</p>
-            </div>
-            """, unsafe_allow_html=True)
-        with g2:
-            st.markdown("""
-            <div style="background:#fef9e7; padding:1rem; border-radius:10px; border-left:4px solid #f39c12;">
-                <h4 style="color:#7e5109; margin-top:0;">2. Deteksi</h4>
-                <p style="font-size:0.85rem;">Monitoring skor CFRSI real-time sebagai Early Warning System (EWS) untuk alokasi audit berbasis risiko.</p>
-            </div>
-            """, unsafe_allow_html=True)
-        with g3:
-            st.markdown("""
-            <div style="background:#fdedec; padding:1rem; border-radius:10px; border-left:4px solid #e74c3c;">
-                <h4 style="color:#780206; margin-top:0;">3. Investigasi</h4>
-                <p style="font-size:0.85rem;">Eskalasi pelabuhan kategori Risiko Tinggi ke Inspektorat Jenderal untuk verifikasi lapangan & penindakan.</p>
-            </div>
-            """, unsafe_allow_html=True)
-        with g4:
-            st.markdown("""
-            <div style="background:#eafaf1; padding:1rem; border-radius:10px; border-left:4px solid #27ae60;">
-                <h4 style="color:#196f3d; margin-top:0;">4. Evaluasi</h4>
-                <p style="font-size:0.85rem;">Umpan balik audit untuk re-kalibrasi threshold model & penanganan false-positive berulang.</p>
-            </div>
-            """, unsafe_allow_html=True)
+    #     g1, g2, g3, g4 = st.columns(4)
+    #     with g1:
+    #         st.markdown("""
+    #         <div style="background:#eaf2f8; padding:1rem; border-radius:10px; border-left:4px solid #2980b9;">
+    #             <h4 style="color:#1a4a7a; margin-top:0;">1. Pencegahan</h4>
+    #             <p style="font-size:0.85rem;">Standardisasi verifikasi dokumen digital & pembatasan akses sistem persetujuan otomatis di luar jam kerja.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
+    #     with g2:
+    #         st.markdown("""
+    #         <div style="background:#fef9e7; padding:1rem; border-radius:10px; border-left:4px solid #f39c12;">
+    #             <h4 style="color:#7e5109; margin-top:0;">2. Deteksi</h4>
+    #             <p style="font-size:0.85rem;">Monitoring skor CFRSI real-time sebagai Early Warning System (EWS) untuk alokasi audit berbasis risiko.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
+    #     with g3:
+    #         st.markdown("""
+    #         <div style="background:#fdedec; padding:1rem; border-radius:10px; border-left:4px solid #e74c3c;">
+    #             <h4 style="color:#780206; margin-top:0;">3. Investigasi</h4>
+    #             <p style="font-size:0.85rem;">Eskalasi pelabuhan kategori Risiko Tinggi ke Inspektorat Jenderal untuk verifikasi lapangan & penindakan.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
+    #     with g4:
+    #         st.markdown("""
+    #         <div style="background:#eafaf1; padding:1rem; border-radius:10px; border-left:4px solid #27ae60;">
+    #             <h4 style="color:#196f3d; margin-top:0;">4. Evaluasi</h4>
+    #             <p style="font-size:0.85rem;">Umpan balik audit untuk re-kalibrasi threshold model & penanganan false-positive berulang.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
