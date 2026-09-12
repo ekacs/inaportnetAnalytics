@@ -11,7 +11,6 @@
 *.pfx
 credentials.json
 client_secret*.json
-.claude/*
 
 # ==========================================
 # 2. Folder Workfiles & Data Sementara
@@ -49,9 +48,20 @@ ENV/
 *.swo
 .DS_Store
 Thumbs.db
-.omop/*
-.kilo/*
-.codegraph/*
+
+# Developer & AI Assistant Tooling (Root & Subdirektori)
+.omop/
+**/.omop/
+.claude/
+**/.claude/
+.devcontainer/
+**/.devcontainer/
+.specstory/
+**/.specstory/
+.codegraph/
+**/.codegraph/
+.kilo/
+**/.kilo/
 
 # ==========================================
 # 5. Logs & Temp Files
