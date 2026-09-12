@@ -66,7 +66,7 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                               label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+#     st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
     st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
     st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
@@ -403,6 +403,20 @@ with tab_upload:
             st.success(f"✅ File berhasil dibaca: **{len(df_upload):,} baris × {len(df_upload.columns)} kolom** ({file_size_mb} MB)")
 
             # Preview
+
+            # ── Simpan file asli ke ./data untuk backup lokal ──
+            try:
+                _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                _data_dir = os.path.join(_project_root, "data")
+                os.makedirs(_data_dir, exist_ok=True)
+                _save_path = os.path.join(_data_dir, uploaded_file.name)
+                uploaded_file.seek(0)
+                with open(_save_path, "wb") as _f:
+                    _f.write(uploaded_file.getvalue())
+                st.caption(f"💾 File tersimpan: `{_save_path}`")
+            except Exception as _e:
+                st.warning(f"⚠️ Gagal menyimpan file ke folder data: {_e}")
+
             with st.expander("🔍 Preview Data (10 baris pertama)", expanded=True):
                 st.dataframe(df_upload.head(10), width="stretch")
 
@@ -480,7 +494,7 @@ with tab_upload:
                             f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 3000, 1))} detik"
                         )
 
-                    res = insert_pkk_records(df_final, batch_size=2500, progress_callback=db_progress_cb)
+                    res = insert_pkk_records(df_final)
 
                     db_status.empty()
                     db_progress.empty()
@@ -586,6 +600,135 @@ with tab_db:
             st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari {actual_source_label}.")
             with st.expander("🔍 Preview Data"):
                 st.dataframe(df_db.head(20), width="stretch")
+
+# ── Fitur: Tampilkan file di ./data & Analisis Kualitas Data ──
+    st.markdown("---")
+    st.markdown('<div class="section-header">📁 File Hasil Scraping di Folder Data</div>', unsafe_allow_html=True)
+
+    _data_dir_scan = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    if os.path.isdir(_data_dir_scan):
+        _files_data = [f for f in os.listdir(_data_dir_scan)
+                       if os.path.isfile(os.path.join(_data_dir_scan, f))
+                       and not f.startswith(".")
+                       and f.endswith((".csv", ".xlsx", ".xls", ".parquet"))]
+        if _files_data:
+            st.caption(f"Ditemukan **{len(_files_data)} file** di folder `data/`:")
+            _file_info_rows = []
+            for _fname in sorted(_files_data):
+                _fpath = os.path.join(_data_dir_scan, _fname)
+                _fsize = os.path.getsize(_fpath)
+                _ftime = os.path.getmtime(_fpath)
+                import datetime as _dt
+                _file_info_rows.append({
+                    "File": _fname,
+                    "Ukuran": f"{_fsize / 1024:.1f} KB" if _fsize < 1_048_576 else f"{_fsize / 1_048_576:.1f} MB",
+                    "Terakhir Diubah": _dt.datetime.fromtimestamp(_ftime).strftime("%Y-%m-%d %H:%M"),
+                })
+            st.dataframe(pd.DataFrame(_file_info_rows), width="stretch", hide_index=True)
+        else:
+            st.info("📂 Belum ada file CSV/Excel/Parquet di folder `data/`.")
+    else:
+        st.info("📂 Folder `data/` belum tersedia.")
+
+    # ── Analisis Kualitas Data ──
+    if "df" in st.session_state and st.session_state["df"] is not None and not st.session_state["df"].empty:
+        st.markdown("---")
+        st.markdown('<div class="section-header">🔍 Analisis Kualitas Data</div>', unsafe_allow_html=True)
+        _df_quality = st.session_state["df"].copy()
+        _err_count = 0
+        _null_count = 0
+        _dup_count = 0
+        if "submission" in _df_quality.columns:
+            _err_count += _df_quality["submission"].isna().sum()
+        if "response" in _df_quality.columns:
+            _err_count += _df_quality["response"].isna().sum()
+        if "approval_minutes" in _df_quality.columns:
+            _err_count += (_df_quality["approval_minutes"] < 0).sum()
+        if "pkk_number" in _df_quality.columns:
+            _err_count += _df_quality["pkk_number"].isna().sum() + (_df_quality["pkk_number"].str.strip() == "").sum()
+            _dup_count = _df_quality.duplicated(subset=["pkk_number"], keep="first").sum()
+        _critical_cols = [c for c in ["submission", "response", "port_code", "pkk_number", "vessel_name"]
+                          if c in _df_quality.columns]
+        if _critical_cols:
+            _null_count = _df_quality[_critical_cols].isna().any(axis=1).sum()
+        st.caption(
+            f"📊 Total: **{len(_df_quality):,}** | "
+            f"🚨 Error: **{_err_count:,}** | "
+            f"🚫 Null: **{_null_count:,}** | "
+            f"🔄 Duplikat: **{_dup_count:,}**"
+        )
+
+        qc_col1, qc_col2, qc_col3 = st.columns(3)
+
+        with qc_col1:
+            if st.button("🚨 Lihat Transaksi Error", key="btn_show_errors", width="stretch"):
+                # Transaksi error: baris yang gagal diproses (submission/response tidak valid)
+                _err_mask = pd.Series([False] * len(_df_quality), index=_df_quality.index)
+                if "submission" in _df_quality.columns:
+                    _err_mask |= _df_quality["submission"].isna()
+                if "response" in _df_quality.columns:
+                    _err_mask |= _df_quality["response"].isna()
+                if "approval_minutes" in _df_quality.columns:
+                    _err_mask |= (_df_quality["approval_minutes"] < 0)
+                if "pkk_number" in _df_quality.columns:
+                    _err_mask |= _df_quality["pkk_number"].isna() | (_df_quality["pkk_number"].str.strip() == "")
+                _df_errors = _df_quality[_err_mask]
+                st.session_state["_df_errors"] = _df_errors
+
+            if "_df_errors" in st.session_state and not st.session_state["_df_errors"].empty:
+                _df_errors = st.session_state["_df_errors"]
+                st.warning(f"⚠️ **{len(_df_errors):,} transaksi error** ditemukan.")
+                st.dataframe(_df_errors.head(100), width="stretch", hide_index=True)
+                _err_csv = _df_errors.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Simpan Transaksi Error (.csv)", _err_csv,
+                                   file_name="transaksi_error.csv", mime="text/csv",
+                                   key="dl_errors")
+
+        with qc_col2:
+            if st.button("🚫 Lihat Transaksi Null", key="btn_show_nulls", width="stretch"):
+                # Transaksi dengan nilai null di kolom kritis
+                _critical_cols = [c for c in ["submission", "response", "port_code", "pkk_number", "vessel_name"]
+                                  if c in _df_quality.columns]
+                _null_mask = _df_quality[_critical_cols].isna().any(axis=1) if _critical_cols else pd.Series([False] * len(_df_quality))
+                _df_nulls = _df_quality[_null_mask]
+                st.session_state["_df_nulls"] = _df_nulls
+
+            if "_df_nulls" in st.session_state and not st.session_state["_df_nulls"].empty:
+                _df_nulls = st.session_state["_df_nulls"]
+                st.warning(f"⚠️ **{len(_df_nulls):,} transaksi dengan nilai null** ditemukan.")
+                st.dataframe(_df_nulls.head(100), width="stretch", hide_index=True)
+                _null_csv = _df_nulls.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Simpan Transaksi Null (.csv)", _null_csv,
+                                   file_name="transaksi_null.csv", mime="text/csv",
+                                   key="dl_nulls")
+
+        with qc_col3:
+            if st.button("🔄 Lihat Duplikat", key="btn_show_dups", width="stretch"):
+                # Duplikat berdasarkan pkk_number
+                _dup_col = "pkk_number" if "pkk_number" in _df_quality.columns else None
+                if _dup_col:
+                    _df_dups = _df_quality[_df_quality.duplicated(subset=[_dup_col], keep="first")]
+                else:
+                    _df_dups = _df_quality[_df_quality.duplicated(keep="first")]
+                st.session_state["_df_dups"] = _df_dups
+
+            if "_df_dups" in st.session_state and not st.session_state["_df_dups"].empty:
+                _df_dups = st.session_state["_df_dups"]
+                st.warning(f"🔄 **{len(_df_dups):,} transaksi duplikat** ditemukan.")
+                st.dataframe(_df_dups.head(100), width="stretch", hide_index=True)
+                _dup_csv = _df_dups.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Simpan Duplikat (.csv)", _dup_csv,
+                                   file_name="transaksi_duplikat.csv", mime="text/csv",
+                                   key="dl_dups")
+
+        # Ringkasan kualitas
+        _total = len(_df_quality)
+        _n_errors = len(st.session_state.get("_df_errors", pd.DataFrame()))
+        _n_nulls = len(st.session_state.get("_df_nulls", pd.DataFrame()))
+        _n_dups = len(st.session_state.get("_df_dups", pd.DataFrame()))
+        if _n_errors or _n_nulls or _n_dups:
+            _clean = _total - _n_errors - _n_nulls - _n_dups
+            st.info(f"📊 **Ringkasan:** {_total:,} total → {_n_errors:,} error | {_n_nulls:,} null | {_n_dups:,} duplikat | **{max(0, _clean):,} bersih**")
 
     st.markdown("---")
     st.markdown('<div class="section-header">🗑️ Hapus Semua Data</div>', unsafe_allow_html=True)

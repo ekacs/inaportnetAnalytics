@@ -81,7 +81,7 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                                      label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",               label="📊 Data Collection")
-    st.page_link("pages/2_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
+#     st.page_link("pages/2_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
     st.page_link("pages/3_🚦_Traffic_Overview.py",              label="🚦 Traffic Overview")
     st.page_link("pages/4_📋_Service_Performance.py",           label="📋 Service Performance")
     st.page_link("pages/5_🗺️_Port_Classification.py",           label="🗺️ Port Classification")
@@ -102,7 +102,7 @@ with st.sidebar:
 # ──────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero-fraud">
-    <h1>🛡️ Fraud Risk Screening & CFRSI Engine</h1>
+    <h1>🛡️ Composite Fraud Risk Screening Index (CFRSI) Model </h1>
     <p>Sistem EWS Deteksi Anomali & Index Risiko Fraud Lintas Pelabuhan (Wijaya & Setyawan, 2026)</p>
 </div>
 """, unsafe_allow_html=True)
@@ -111,6 +111,17 @@ st.markdown("""
 # Data Session Handling
 # ──────────────────────────────────────────────────────────────
 has_data = "df" in st.session_state and not st.session_state["df"].empty
+if not has_data:
+    try:
+        from modules.database import fetch_pkk_records
+        from modules.preprocessing import preprocess
+        _auto_df = fetch_pkk_records()
+        if not _auto_df.empty:
+            st.session_state["df"] = preprocess(_auto_df)
+            has_data = True
+            st.info("📂 Data dimuat otomatis dari database lokal.")
+    except Exception:
+        pass
 
 if not has_data:
     st.warning("⚠️ **Belum ada data transaksi di sesi.** Anda dapat memuat data dari halaman Data Collection atau mengklik tombol simulasi data 257 pelabuhan di bawah ini untuk melihat demo analisis CFRSI.")
@@ -270,11 +281,21 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         
         st_col1, st_col2 = st.columns(2)
         with st_col1:
-            st.markdown("#### 1. Model Regresi OLS & Modified Z-Score")
+            st.markdown("#### 1. Statistical Outlier Detection (Modified Z-Score)")
             st.latex(r"T_i = \beta_0 + \beta_1 V + \beta_2 GT + \beta_3 D + \beta_4 H")
-            st.latex(r"Z_i = 0.6745 \frac{r_i - \bar{r}}{\text{MAD}} \le -2.5")
-            st.write(f"• **Jumlah Outlier Residual ($Z \\le -2.5$):** {summary_stats.get('stat_pkk', 0):,} transaksi ({summary_stats.get('stat_pct', 0):.1f}%)")
+            st.latex(r"Z_i = 0.6745 \frac{r_i - \bar{r}}{\text{MAD}} \le -3.5")
+            st.write(f"• **Jumlah Outlier Residual ($Z \\le -3.5$):** {summary_stats.get('stat_pkk', 0):,} transaksi ({summary_stats.get('stat_pct', 0):.1f}%)")
             st.caption("Menyoroti deviasi residual negatif yang ekstrem (persetujuan abnormal yang jauh lebih cepat dibanding ekspektasi kondisi operasional).")
+        if summary_stats.get("stat_pkk", 0) > 0:
+            _df_stat_outliers = cfrsi_df[cfrsi_df["is_stat_anomaly"] == True].copy()
+            _stat_csv = _df_stat_outliers.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "💾 Download Transaksi Outlier Statistik (.csv)",
+                _stat_csv,
+                file_name="transaksi_outlier_statistik.csv",
+                mime="text/csv",
+                key="dl_stat_outliers",
+            )
 
         with st_col2:
             st.markdown("#### 2. Isolation Forest (Unsupervised ML)")

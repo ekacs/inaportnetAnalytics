@@ -43,7 +43,7 @@ with st.sidebar:
     st.markdown("**Navigasi**")
     st.page_link("app.py",                               label="🏠 Beranda")
     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+#     st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
     st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
     st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
     st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
@@ -51,6 +51,19 @@ with st.sidebar:
     st.markdown("---")
 
     df_sess = st.session_state.get("df", pd.DataFrame())
+    if df_sess.empty:
+        try:
+            from modules.database import fetch_pkk_records
+            from modules.preprocessing import preprocess
+            _auto_df = fetch_pkk_records()
+            if not _auto_df.empty:
+                df_sess = preprocess(_auto_df)
+                st.session_state["df"] = df_sess
+                st.info("📂 Data dimuat otomatis dari database lokal.")
+        except Exception:
+            pass
+
+
 
     # Filter pelabuhan
     if not df_sess.empty and "port" in df_sess.columns:

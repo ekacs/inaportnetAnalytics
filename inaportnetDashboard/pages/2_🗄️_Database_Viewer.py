@@ -1,424 +1,427 @@
 """
-pages/2_🗄️_Database_Viewer.py
-Halaman penjelajah database SQLite secara langsung (Live Database Viewer)
-dan opsi pengunduhan data dalam berbagai format (CSV, Excel, JSON, SQL).
+DEACTIVATED - Database Viewer page disabled
 """
+# """
+# pages/2_🗄️_Database_Viewer.py
+# Halaman penjelajah database SQLite secara langsung (Live Database Viewer)
+# dan opsi pengunduhan data dalam berbagai format (CSV, Excel, JSON, SQL).
+# """
 
-import io
-import streamlit as st
-import pandas as pd
-from modules.database import (
-    is_connected, get_database_stats, get_db_status_info, fetch_pkk_records_paginated,
-    fetch_pkk_records, get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
-)
-from modules.theme import render_theme_selector
-from modules.scraper import load_port_reference
+# import io
+# import streamlit as st
+# import pandas as pd
+# from modules.database import (
+#     is_connected, get_database_stats, get_db_status_info, fetch_pkk_records_paginated,
+#     fetch_pkk_records, get_available_ports_from_db, check_and_clean_db_duplicates, generate_sql_dump
+# )
+# from modules.theme import render_theme_selector
+# from modules.scraper import load_port_reference
 
-st.set_page_config(
-    page_title="Database Viewer · Inaportnet",
-    page_icon="🗄️",
-    layout="wide"
-)
+# st.set_page_config(
+#     page_title="Database Viewer · Inaportnet",
+#     page_icon="🗄️",
+#     layout="wide"
+# )
 
-render_theme_selector()
+# render_theme_selector()
 
-# ── CSS ───────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+# # ── CSS ───────────────────────────────────────────────────────
+# st.markdown("""
+# <style>
+# @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+# html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-.section-header {
-    background: linear-gradient(90deg, #0f2d52, #1a4a7a);
-    color: white;
-    padding: 0.75rem 1.25rem;
-    border-radius: 10px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin: 1.2rem 0 0.8rem;
-    box-shadow: 0 2px 6px rgba(15, 45, 82, 0.1);
-}
-.info-box {
-    background: #eaf3fb;
-    border-left: 4px solid #1a4a7a;
-    border-radius: 0 8px 8px 0;
-    padding: 0.8rem 1rem;
-    font-size: 0.88rem;
-    color: #0f2d52;
-}
-.metric-card {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1.1rem 1rem;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-.metric-card .val   { font-size: 1.8rem; font-weight: 700; color: #1a4a7a; }
-.metric-card .label { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
-.metric-card .sub   { font-size: 0.75rem; color: #adb5bd; margin-top: 1px; }
+# .section-header {
+#     background: linear-gradient(90deg, #0f2d52, #1a4a7a);
+#     color: white;
+#     padding: 0.75rem 1.25rem;
+#     border-radius: 10px;
+#     font-size: 1.05rem;
+#     font-weight: 600;
+#     margin: 1.2rem 0 0.8rem;
+#     box-shadow: 0 2px 6px rgba(15, 45, 82, 0.1);
+# }
+# .info-box {
+#     background: #eaf3fb;
+#     border-left: 4px solid #1a4a7a;
+#     border-radius: 0 8px 8px 0;
+#     padding: 0.8rem 1rem;
+#     font-size: 0.88rem;
+#     color: #0f2d52;
+# }
+# .metric-card {
+#     background: white;
+#     border: 1px solid #e2e8f0;
+#     border-radius: 12px;
+#     padding: 1.1rem 1rem;
+#     text-align: center;
+#     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+# }
+# .metric-card .val   { font-size: 1.8rem; font-weight: 700; color: #1a4a7a; }
+# .metric-card .label { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
+# .metric-card .sub   { font-size: 0.75rem; color: #adb5bd; margin-top: 1px; }
 
-footer{visibility:hidden;} #MainMenu{visibility:hidden;} [data-testid="stSidebarNav"]{display:none !important;}
-</style>
-""", unsafe_allow_html=True)
+# footer{visibility:hidden;} #MainMenu{visibility:hidden;} [data-testid="stSidebarNav"]{display:none !important;}
+# </style>
+# """, unsafe_allow_html=True)
 
-# ── Sidebar Navigation ────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🚢 Inaportnet Analytics")
-    st.markdown("---")
-    st.markdown("**Navigasi**")
-    st.page_link("app.py",                               label="🏠 Beranda")
-    st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-    st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
-    st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
-    st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
-    st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
-    st.markdown("---")
-    
-    db_info = get_db_status_info()
-    st.markdown("**Status Database**")
-    st.success(f"{db_info['label']}")
+# # ── Sidebar Navigation ────────────────────────────────────────
+# with st.sidebar:
+#     st.markdown("### 🚢 Inaportnet Analytics")
+#     st.markdown("---")
+#     st.markdown("**Navigasi**")
+#     st.page_link("app.py",                               label="🏠 Beranda")
+#     st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
+#     st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
+#     st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
+#     st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
+#     st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
+#     st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
+#     st.markdown("---")
 
-    if "df" in st.session_state and not st.session_state["df"].empty:
-        _db_stats_check = get_database_stats()
-        if _db_stats_check.get("total_records", 0) == 0:
-            st.session_state.pop("df", None)
-            st.rerun()
-        else:
-            st.markdown("**Data Sesi Analisis**")
-            st.info(f"📌 {len(st.session_state['df']):,} record dimuat")
-            if st.button("🗑️ Hapus Data Sesi", width="stretch"):
-                st.session_state.pop("df", None)
-                st.rerun()
+#     db_info = get_db_status_info()
+#     st.markdown("**Status Database**")
+#     st.success(f"{db_info['label']}")
 
-# ── Header ────────────────────────────────────────────────────
-st.markdown("# 🗄️ Live Database Viewer & Downloader")
-st.markdown("Inspeksi langsung database (SQLite) secara real-time, lakukan pencarian/filter, dan unduh database dalam berbagai format.")
+#     if "df" in st.session_state and not st.session_state["df"].empty:
+#         _db_stats_check = get_database_stats()
+#         if _db_stats_check.get("total_records", 0) == 0:
+#             st.session_state.pop("df", None)
+#             st.rerun()
+#         else:
+#             st.markdown("**Data Sesi Analisis**")
+#             st.info(f"📌 {len(st.session_state['df']):,} record dimuat")
+#             if st.button("🗑️ Hapus Data Sesi", width="stretch"):
+#                 st.session_state.pop("df", None)
+#                 st.rerun()
 
-# ── Deduplication Dialog Modal ────────────────────────────────
-if hasattr(st, "dialog"):
-    @st.dialog("🧹 Deteksi & Pembersihan Duplikasi Data SQLite")
-    def render_dedup_dialog():
-        st.markdown(
-            "Sistem akan mendeteksi data yang telah di-scrap dan tersimpan di SQLite, "
-            "menghitung duplikasi record (`PKK_number`), dan menghapusnya sebelum Live View dijalankan."
-        )
-        status_box = st.empty()
-        pbar = st.progress(0)
+# # ── Header ────────────────────────────────────────────────────
+# st.markdown("# 🗄️ Live Database Viewer & Downloader")
+# st.markdown("Inspeksi langsung database (SQLite) secara real-time, lakukan pencarian/filter, dan unduh database dalam berbagai format.")
 
-        def cb_update(step_code, msg, pct):
-            status_box.info(f"**Proses Pembersihan Data:**\n\n{msg}")
-            pbar.progress(pct)
+# # ── Deduplication Dialog Modal ────────────────────────────────
+# if hasattr(st, "dialog"):
+#     @st.dialog("🧹 Deteksi & Pembersihan Duplikasi Data SQLite")
+#     def render_dedup_dialog():
+#         st.markdown(
+#             "Sistem akan mendeteksi data yang telah di-scrap dan tersimpan di SQLite, "
+#             "menghitung duplikasi record (`PKK_number`), dan menghapusnya sebelum Live View dijalankan."
+#         )
+#         status_box = st.empty()
+#         pbar = st.progress(0)
 
-        res = check_and_clean_db_duplicates(progress_callback=cb_update)
+#         def cb_update(step_code, msg, pct):
+#             status_box.info(f"**Proses Pembersihan Data:**\n\n{msg}")
+#             pbar.progress(pct)
 
-        if res["success"]:
-            st.success(
-                f"🎉 **Proses Pembersihan Selesai!**\n\n"
-                f"- Total record diperiksa: **{res['total_checked']:,}**\n"
-                f"- Duplikasi ditemukan: **{res['duplicates_found']:,}**\n"
-                f"- Duplikasi dihapus: **{res['duplicates_removed']:,}**\n"
-                f"- Total record bersih: **{res['clean_count']:,}**"
-            )
-            st.session_state["db_dedup_checked"] = True
-            if st.button("🚀 Tampilkan Live View", type="primary", width="stretch"):
-                st.rerun()
-        else:
-            st.error(f"❌ Gagal memproses duplikasi: {res['error']}")
-            if st.button("Tutup", width="stretch"):
-                st.rerun()
-else:
-    def render_dedup_dialog():
-        with st.spinner("Mendeteksi & menghapus duplikasi data di SQLite..."):
-            res = check_and_clean_db_duplicates()
-        if res["success"]:
-            st.success(f"✅ Pembersihan selesai! {res['duplicates_removed']:,} record duplikat dihapus.")
-            st.session_state["db_dedup_checked"] = True
-        else:
-            st.error(f"❌ Gagal memproses duplikasi: {res['error']}")
+#         res = check_and_clean_db_duplicates(progress_callback=cb_update)
 
-# Opsi manual trigger dialog duplikasi via session state
-if st.session_state.get("trigger_dedup_modal", False):
-    st.session_state["trigger_dedup_modal"] = False
-    render_dedup_dialog()
+#         if res["success"]:
+#             st.success(
+#                 f"🎉 **Proses Pembersihan Selesai!**\n\n"
+#                 f"- Total record diperiksa: **{res['total_checked']:,}**\n"
+#                 f"- Duplikasi ditemukan: **{res['duplicates_found']:,}**\n"
+#                 f"- Duplikasi dihapus: **{res['duplicates_removed']:,}**\n"
+#                 f"- Total record bersih: **{res['clean_count']:,}**"
+#             )
+#             st.session_state["db_dedup_checked"] = True
+#             if st.button("🚀 Tampilkan Live View", type="primary", width="stretch"):
+#                 st.rerun()
+#         else:
+#             st.error(f"❌ Gagal memproses duplikasi: {res['error']}")
+#             if st.button("Tutup", width="stretch"):
+#                 st.rerun()
+# else:
+#     def render_dedup_dialog():
+#         with st.spinner("Mendeteksi & menghapus duplikasi data di SQLite..."):
+#             res = check_and_clean_db_duplicates()
+#         if res["success"]:
+#             st.success(f"✅ Pembersihan selesai! {res['duplicates_removed']:,} record duplikat dihapus.")
+#             st.session_state["db_dedup_checked"] = True
+#         else:
+#             st.error(f"❌ Gagal memproses duplikasi: {res['error']}")
+
+# # Opsi manual trigger dialog duplikasi via session state
+# if st.session_state.get("trigger_dedup_modal", False):
+#     st.session_state["trigger_dedup_modal"] = False
+#     render_dedup_dialog()
 
 
-# ── Load Port Reference ───────────────────────────────────────
-@st.cache_data(show_spinner=False)
-def load_port_ref():
-    df = load_port_reference("data/port_code.xlsx")
-    if df.empty:
-        return pd.DataFrame()
-    df = df.dropna(subset=["KODE"])
-    df["label"] = df["KODE"].astype(str) + " — " + df["PELABUHAN"].astype(str)
-    return df.drop_duplicates(subset=["KODE"]).reset_index(drop=True)
+# # ── Load Port Reference ───────────────────────────────────────
+# @st.cache_data(show_spinner=False)
+# def load_port_ref():
+#     df = load_port_reference("data/port_code.xlsx")
+#     if df.empty:
+#         return pd.DataFrame()
+#     df = df.dropna(subset=["KODE"])
+#     df["label"] = df["KODE"].astype(str) + " — " + df["PELABUHAN"].astype(str)
+#     return df.drop_duplicates(subset=["KODE"]).reset_index(drop=True)
 
-df_port_ref = load_port_ref()
-port_labels = df_port_ref["label"].tolist() if not df_port_ref.empty else []
-port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} if not df_port_ref.empty else {}
+# df_port_ref = load_port_ref()
+# port_labels = df_port_ref["label"].tolist() if not df_port_ref.empty else []
+# port_code_of = {row["label"]: row["KODE"] for _, row in df_port_ref.iterrows()} if not df_port_ref.empty else {}
 
-# ── Database Source Selector ─────────────────────────────────────
-st.markdown('<div class="section-header">🗄️ Sumber Database</div>', unsafe_allow_html=True)
+# # ── Database Source Selector ─────────────────────────────────────
+# st.markdown('<div class="section-header">🗄️ Sumber Database</div>', unsafe_allow_html=True)
 
-db_source_options = ["📦 SQLite (Lokal)"]
-if False:
-    pass  # Supabase removed
+# db_source_options = ["📦 SQLite (Lokal)"]
+# if False:
+#     pass  # Supabase removed
 
-db_source = st.radio(
-    "Pilih Sumber Data",
-    options=db_source_options,
-    horizontal=True,
-    key="db_viewer_source",
-)
-db_source_code = "sqlite"
+# db_source = st.radio(
+#     "Pilih Sumber Data",
+#     options=db_source_options,
+#     horizontal=True,
+#     key="db_viewer_source",
+# )
+# db_source_code = "sqlite"
 
-# ── DB Ringkasan Metrik ────────────────────────────────────────
-db_stats = get_database_stats()
+# # ── DB Ringkasan Metrik ────────────────────────────────────────
+# db_stats = get_database_stats()
 
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="val">{db_stats.get('total_records', 0):,}</div>
-        <div class="label">Total Record Database</div>
-        <div class="sub">Tabel pkk_records</div>
-    </div>
-    """, unsafe_allow_html=True)
-with c2:
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="val">{db_stats.get('unique_ports', 0)}</div>
-        <div class="label">Pelabuhan Terdaftar</div>
-        <div class="sub">Kode LOCODE Unik</div>
-    </div>
-    """, unsafe_allow_html=True)
-with c3:
-    st.markdown("""
-    <div class="metric-card">
-        <div class="val">2025</div>
-        <div class="label">Tahun Data</div>
-        <div class="sub">Inaportnet PKK</div>
-    </div>
-    """, unsafe_allow_html=True)
-with c4:
-    db_server_label = "SQLite Local"
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="val">Active</div>
-        <div class="label">Status Server</div>
-        <div class="sub">{db_server_label}</div>
-    </div>
-    """, unsafe_allow_html=True)
+# c1, c2, c3, c4 = st.columns(4)
+# with c1:
+#     st.markdown(f"""
+#     <div class="metric-card">
+#         <div class="val">{db_stats.get('total_records', 0):,}</div>
+#         <div class="label">Total Record Database</div>
+#         <div class="sub">Tabel pkk_records</div>
+#     </div>
+#     """, unsafe_allow_html=True)
+# with c2:
+#     st.markdown(f"""
+#     <div class="metric-card">
+#         <div class="val">{db_stats.get('unique_ports', 0)}</div>
+#         <div class="label">Pelabuhan Terdaftar</div>
+#         <div class="sub">Kode LOCODE Unik</div>
+#     </div>
+#     """, unsafe_allow_html=True)
+# with c3:
+#     st.markdown("""
+#     <div class="metric-card">
+#         <div class="val">2025</div>
+#         <div class="label">Tahun Data</div>
+#         <div class="sub">Inaportnet PKK</div>
+#     </div>
+#     """, unsafe_allow_html=True)
+# with c4:
+#     db_server_label = "SQLite Local"
+#     st.markdown(f"""
+#     <div class="metric-card">
+#         <div class="val">Active</div>
+#         <div class="label">Status Server</div>
+#         <div class="sub">{db_server_label}</div>
+#     </div>
+#     """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+# st.markdown("<br>", unsafe_allow_html=True)
 
-# ════════════════════════════════════════════════════════════════
-# FILTER & SEARCH CONTROLS
-# ════════════════════════════════════════════════════════════════
-st.markdown('<div class="section-header">🔍 Filter & Pencarian Database</div>', unsafe_allow_html=True)
+# # ════════════════════════════════════════════════════════════════
+# # FILTER & SEARCH CONTROLS
+# # ════════════════════════════════════════════════════════════════
+# st.markdown('<div class="section-header">🔍 Filter & Pencarian Database</div>', unsafe_allow_html=True)
 
-col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
+# col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
 
-with col_f1:
-    search_q = st.text_input(
-        "🔎 Cari PKK / Kapal",
-        placeholder="Ketik Nomor PKK atau Nama Kapal...",
-        help="Mencari kata kunci pada kolom pkk_number atau vessel_name."
-    )
+# with col_f1:
+#     search_q = st.text_input(
+#         "🔎 Cari PKK / Kapal",
+#         placeholder="Ketik Nomor PKK atau Nama Kapal...",
+#         help="Mencari kata kunci pada kolom pkk_number atau vessel_name."
+#     )
 
-with col_f2:
-    selected_ports_lbl = st.multiselect(
-        "🏗️ Filter Pelabuhan",
-        options=port_labels,
-        placeholder="Kosongkan untuk semua pelabuhan...",
-    )
-    selected_port_codes = [port_code_of[lbl] for lbl in selected_ports_lbl if lbl in port_code_of]
+# with col_f2:
+#     selected_ports_lbl = st.multiselect(
+#         "🏗️ Filter Pelabuhan",
+#         options=port_labels,
+#         placeholder="Kosongkan untuk semua pelabuhan...",
+#     )
+#     selected_port_codes = [port_code_of[lbl] for lbl in selected_ports_lbl if lbl in port_code_of]
 
-with col_f3:
-    year_sel = st.selectbox(
-        "📅 Tahun",
-        options=[None, 2025, 2024],
-        index=0,
-        format_func=lambda x: "Semua Tahun" if x is None else str(x)
-    )
+# with col_f3:
+#     year_sel = st.selectbox(
+#         "📅 Tahun",
+#         options=[None, 2025, 2024],
+#         index=0,
+#         format_func=lambda x: "Semua Tahun" if x is None else str(x)
+#     )
 
-col_f4, col_f5, col_f6 = st.columns([1.5, 1, 1])
+# col_f4, col_f5, col_f6 = st.columns([1.5, 1, 1])
 
-with col_f4:
-    angkutan_sel = st.multiselect(
-        "🚢 Jenis Angkutan",
-        options=["dn — Domestik", "ln — Luar Negeri"],
-        default=["dn — Domestik", "ln — Luar Negeri"],
-    )
-    angkutan_codes = [x.split(" — ")[0] for x in angkutan_sel]
+# with col_f4:
+#     angkutan_sel = st.multiselect(
+#         "🚢 Jenis Angkutan",
+#         options=["dn — Domestik", "ln — Luar Negeri"],
+#         default=["dn — Domestik", "ln — Luar Negeri"],
+#     )
+#     angkutan_codes = [x.split(" — ")[0] for x in angkutan_sel]
 
-with col_f5:
-    page_size = st.selectbox("📄 Baris per Halaman", [50, 100, 250, 500, 1000, 5000], index=1)
+# with col_f5:
+#     page_size = st.selectbox("📄 Baris per Halaman", [50, 100, 250, 500, 1000, 5000], index=1)
 
-with col_f6:
-    current_page = st.number_input("📖 Halaman ke-", min_value=1, value=1, step=1)
+# with col_f6:
+#     current_page = st.number_input("📖 Halaman ke-", min_value=1, value=1, step=1)
 
-offset_val = (current_page - 1) * page_size
+# offset_val = (current_page - 1) * page_size
 
-# ════════════════════════════════════════════════════════════════
-# FETCH DATA
-# ════════════════════════════════════════════════════════════════
-with st.spinner(f"Mengambil data dari {db_source}..."):
-    df_db_view, total_filtered_count = fetch_pkk_records_paginated(
-        port_codes=selected_port_codes if selected_port_codes else None,
-        year=year_sel,
-        angkutan=angkutan_codes if len(angkutan_codes) == 1 else None,
-        search_query=search_q,
-        limit=page_size,
-        offset=offset_val,
-            )
+# # ════════════════════════════════════════════════════════════════
+# # FETCH DATA
+# # ════════════════════════════════════════════════════════════════
+# with st.spinner(f"Mengambil data dari {db_source}..."):
+#     df_db_view, total_filtered_count = fetch_pkk_records_paginated(
+#         port_codes=selected_port_codes if selected_port_codes else None,
+#         year=year_sel,
+#         angkutan=angkutan_codes if len(angkutan_codes) == 1 else None,
+#         search_query=search_q,
+#         limit=page_size,
+#         offset=offset_val,
+#             )
 
-total_pages = max(1, (total_filtered_count + page_size - 1) // page_size)
+# total_pages = max(1, (total_filtered_count + page_size - 1) // page_size)
 
-# ── Data Table View Header ────────────────────────────────────
-st.markdown('<div class="section-header">📊 Tampilan Tabel Database (Live View)</div>', unsafe_allow_html=True)
+# # ── Data Table View Header ────────────────────────────────────
+# st.markdown('<div class="section-header">📊 Tampilan Tabel Database (Live View)</div>', unsafe_allow_html=True)
 
-col_stat_info, col_btn_dedup, col_btn_load = st.columns([2, 1, 1])
-with col_stat_info:
-    st.markdown(
-        f"**Menampilkan `{len(df_db_view):,}` dari `{total_filtered_count:,}` record terfilter** "
-        f"(Halaman **{current_page}** dari **{total_pages}**)"
-    )
+# col_stat_info, col_btn_dedup, col_btn_load = st.columns([2, 1, 1])
+# with col_stat_info:
+#     st.markdown(
+#         f"**Menampilkan `{len(df_db_view):,}` dari `{total_filtered_count:,}` record terfilter** "
+#         f"(Halaman **{current_page}** dari **{total_pages}**)"
+#     )
 
-with col_btn_dedup:
-    if st.button("🧹 Bersihkan Duplikat", type="secondary", width="stretch", help="Deteksi dan hapus duplikasi data di SQLite"):
-        render_dedup_dialog()
+# with col_btn_dedup:
+#     if st.button("🧹 Bersihkan Duplikat", type="secondary", width="stretch", help="Deteksi dan hapus duplikasi data di SQLite"):
+#         render_dedup_dialog()
 
-with col_btn_load:
-    if st.button("📥 Muat ke Sesi Analisis", type="primary", width="stretch"):
-        if not df_db_view.empty:
-            st.session_state["df"] = df_db_view
-            st.success(f"✅ **{len(df_db_view):,} record** dimuat ke sesi analisis aktif.")
-        else:
-            st.warning("⚠️ Tabel kosong, tidak ada data untuk dimuat.")
+# with col_btn_load:
+#     if st.button("📥 Muat ke Sesi Analisis", type="primary", width="stretch"):
+#         if not df_db_view.empty:
+#             st.session_state["df"] = df_db_view
+#             st.success(f"✅ **{len(df_db_view):,} record** dimuat ke sesi analisis aktif.")
+#         else:
+#             st.warning("⚠️ Tabel kosong, tidak ada data untuk dimuat.")
 
-if total_filtered_count == 0 or df_db_view.empty:
-    st.warning("⚠️ **Database Kosong atau Tidak Ada Data Terfilter**")
-    st.info(
-        "💡 **Petunjuk:** Jika database SQLite dan masih kosong, silakan buka halaman "
-        "**📊 Data Collection** lalu jalankan **Mulai Scraping** atau **Upload File** (pastikan centang 'Simpan otomatis ke SQLite') "
-        "agar data tersimpan ke database."
-    )
-else:
-    # Filter config keys dynamically
-    available_cols = set(df_db_view.columns)
-    col_cfg = {
-        "PKK_number": st.column_config.TextColumn("Nomor PKK", width="medium"),
-        "vessel_name": st.column_config.TextColumn("Nama Kapal", width="medium"),
-        "port_code": st.column_config.TextColumn("Kode Port", width="small"),
-        "port": st.column_config.TextColumn("Pelabuhan", width="medium"),
-        "service": st.column_config.TextColumn("Layanan", width="small"),
-        "submission": st.column_config.DatetimeColumn("Permohonan", format="YYYY-MM-DD HH:mm"),
-        "response": st.column_config.DatetimeColumn("Persetujuan", format="YYYY-MM-DD HH:mm"),
-        "approval_minutes": st.column_config.NumberColumn("Approval (mnt)", format="%.2f"),
-        "approval_hours": st.column_config.NumberColumn("Approval (jam)", format="%.2f"),
-        "angkutan": st.column_config.TextColumn("Angkutan", width="small"),
-    }
-    cfg_used = {k: v for k, v in col_cfg.items() if k in available_cols}
+# if total_filtered_count == 0 or df_db_view.empty:
+#     st.warning("⚠️ **Database Kosong atau Tidak Ada Data Terfilter**")
+#     st.info(
+#         "💡 **Petunjuk:** Jika database SQLite dan masih kosong, silakan buka halaman "
+#         "**📊 Data Collection** lalu jalankan **Mulai Scraping** atau **Upload File** (pastikan centang 'Simpan otomatis ke SQLite') "
+#         "agar data tersimpan ke database."
+#     )
+# else:
+#     # Filter config keys dynamically
+#     available_cols = set(df_db_view.columns)
+#     col_cfg = {
+#         "PKK_number": st.column_config.TextColumn("Nomor PKK", width="medium"),
+#         "vessel_name": st.column_config.TextColumn("Nama Kapal", width="medium"),
+#         "port_code": st.column_config.TextColumn("Kode Port", width="small"),
+#         "port": st.column_config.TextColumn("Pelabuhan", width="medium"),
+#         "service": st.column_config.TextColumn("Layanan", width="small"),
+#         "submission": st.column_config.DatetimeColumn("Permohonan", format="YYYY-MM-DD HH:mm"),
+#         "response": st.column_config.DatetimeColumn("Persetujuan", format="YYYY-MM-DD HH:mm"),
+#         "approval_minutes": st.column_config.NumberColumn("Approval (mnt)", format="%.2f"),
+#         "approval_hours": st.column_config.NumberColumn("Approval (jam)", format="%.2f"),
+#         "angkutan": st.column_config.TextColumn("Angkutan", width="small"),
+#     }
+#     cfg_used = {k: v for k, v in col_cfg.items() if k in available_cols}
 
-    # Render Interactive DataFrame
-    st.dataframe(
-        df_db_view,
-        width="stretch",
-        height=450,
-        column_config=cfg_used
-    )
+#     # Render Interactive DataFrame
+#     st.dataframe(
+#         df_db_view,
+#         width="stretch",
+#         height=450,
+#         column_config=cfg_used
+#     )
 
-# ════════════════════════════════════════════════════════════════
-# DOWNLOAD DATABASE OPTIONS
-# ════════════════════════════════════════════════════════════════
-st.markdown('<div class="section-header">💾 Opsi Mengunduh Database</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="info-box">'
-    'Pilih lingkup data yang ingin diunduh (Data Tampilan Halaman Ini vs Seluruh Data Terfilter dari Database), '
-    'lalu pilih format file yang Anda butuhkan (CSV, Excel, JSON, atau SQL Dump).'
-    '</div>',
-    unsafe_allow_html=True
-)
+# # ════════════════════════════════════════════════════════════════
+# # DOWNLOAD DATABASE OPTIONS
+# # ════════════════════════════════════════════════════════════════
+# st.markdown('<div class="section-header">💾 Opsi Mengunduh Database</div>', unsafe_allow_html=True)
+# st.markdown(
+#     '<div class="info-box">'
+#     'Pilih lingkup data yang ingin diunduh (Data Tampilan Halaman Ini vs Seluruh Data Terfilter dari Database), '
+#     'lalu pilih format file yang Anda butuhkan (CSV, Excel, JSON, atau SQL Dump).'
+#     '</div>',
+#     unsafe_allow_html=True
+# )
 
-scope_option = st.radio(
-    "🎯 Lingkup Data Unduhan:",
-    options=[
-        f"📄 Hanya Data di Halaman Ini ({len(df_db_view):,} record)",
-        f"🌐 Seluruh Data Terfilter dari SQLite ({total_filtered_count:,} record)",
-    ],
-    index=0,
-    horizontal=True,
-)
+# scope_option = st.radio(
+#     "🎯 Lingkup Data Unduhan:",
+#     options=[
+#         f"📄 Hanya Data di Halaman Ini ({len(df_db_view):,} record)",
+#         f"🌐 Seluruh Data Terfilter dari SQLite ({total_filtered_count:,} record)",
+#     ],
+#     index=0,
+#     horizontal=True,
+# )
 
-if scope_option.startswith("🌐"):
-    with st.spinner(f"Mengambil seluruh data terfilter dari {db_source} untuk diunduh..."):
-        df_download = fetch_pkk_records(
-            port_codes=selected_port_codes if selected_port_codes else None,
-            year=year_sel,
-            angkutan=angkutan_codes if len(angkutan_codes) == 1 else None,
-                    )
-else:
-    df_download = df_db_view.copy()
+# if scope_option.startswith("🌐"):
+#     with st.spinner(f"Mengambil seluruh data terfilter dari {db_source} untuk diunduh..."):
+#         df_download = fetch_pkk_records(
+#             port_codes=selected_port_codes if selected_port_codes else None,
+#             year=year_sel,
+#             angkutan=angkutan_codes if len(angkutan_codes) == 1 else None,
+#                     )
+# else:
+#     df_download = df_db_view.copy()
 
-if df_download.empty:
-    st.warning("⚠️ Tidak ada data yang tersedia untuk diunduh.")
-else:
-    col_dl1, col_dl2, col_dl3, col_dl4 = st.columns(4)
+# if df_download.empty:
+#     st.warning("⚠️ Tidak ada data yang tersedia untuk diunduh.")
+# else:
+#     col_dl1, col_dl2, col_dl3, col_dl4 = st.columns(4)
 
-    # 1. Download CSV
-    with col_dl1:
-        st.markdown("#### 📄 Format CSV")
-        csv_bytes = df_download.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
-        st.download_button(
-            label="⬇️ Download CSV",
-            data=csv_bytes,
-            file_name=f"inaportnet_pkk_db_{len(df_download)}_records.csv",
-            mime="text/csv",
-            width="stretch",
-        )
+#     # 1. Download CSV
+#     with col_dl1:
+#         st.markdown("#### 📄 Format CSV")
+#         csv_bytes = df_download.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+#         st.download_button(
+#             label="⬇️ Download CSV",
+#             data=csv_bytes,
+#             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.csv",
+#             mime="text/csv",
+#             width="stretch",
+#         )
 
-    # 2. Download Excel
-    with col_dl2:
-        st.markdown("#### 📊 Format Excel")
-        excel_buf = io.BytesIO()
-        with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-            df_download.to_excel(writer, sheet_name="Data PKK", index=False)
-            if "port_code" in df_download.columns and "approval_minutes" in df_download.columns:
-                from modules.analysis import compute_port_summary
-                summary = compute_port_summary(df_download)
-                if not summary.empty:
-                    summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
-        excel_buf.seek(0)
-        st.download_button(
-            label="⬇️ Download Excel",
-            data=excel_buf,
-            file_name=f"inaportnet_pkk_db_{len(df_download)}_records.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width="stretch",
-        )
+#     # 2. Download Excel
+#     with col_dl2:
+#         st.markdown("#### 📊 Format Excel")
+#         excel_buf = io.BytesIO()
+#         with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+#             df_download.to_excel(writer, sheet_name="Data PKK", index=False)
+#             if "port_code" in df_download.columns and "approval_minutes" in df_download.columns:
+#                 from modules.analysis import compute_port_summary
+#                 summary = compute_port_summary(df_download)
+#                 if not summary.empty:
+#                     summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
+#         excel_buf.seek(0)
+#         st.download_button(
+#             label="⬇️ Download Excel",
+#             data=excel_buf,
+#             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.xlsx",
+#             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+#             width="stretch",
+#         )
 
-    # 3. Download JSON
-    with col_dl3:
-        st.markdown("#### 🌐 Format JSON")
-        json_str = df_download.to_json(orient="records", date_format="iso", indent=2)
-        st.download_button(
-            label="⬇️ Download JSON",
-            data=json_str.encode("utf-8"),
-            file_name=f"inaportnet_pkk_db_{len(df_download)}_records.json",
-            mime="application/json",
-            width="stretch",
-        )
+#     # 3. Download JSON
+#     with col_dl3:
+#         st.markdown("#### 🌐 Format JSON")
+#         json_str = df_download.to_json(orient="records", date_format="iso", indent=2)
+#         st.download_button(
+#             label="⬇️ Download JSON",
+#             data=json_str.encode("utf-8"),
+#             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.json",
+#             mime="application/json",
+#             width="stretch",
+#         )
 
-    # 4. Download SQL Dump
-    with col_dl4:
-        st.markdown("#### 🗄️ Format SQL Dump")
-        sql_dump = generate_sql_dump()
-        st.download_button(
-            label="⬇️ Download SQL Dump",
-            data=sql_dump.encode("utf-8"),
-            file_name=f"inaportnet_pkk_db_{len(df_download)}_records.sql",
-            mime="application/sql",
-            width="stretch",
-        )
+#     # 4. Download SQL Dump
+#     with col_dl4:
+#         st.markdown("#### 🗄️ Format SQL Dump")
+#         sql_dump = generate_sql_dump()
+#         st.download_button(
+#             label="⬇️ Download SQL Dump",
+#             data=sql_dump.encode("utf-8"),
+#             file_name=f"inaportnet_pkk_db_{len(df_download)}_records.sql",
+#             mime="application/sql",
+#             width="stretch",
+#         )

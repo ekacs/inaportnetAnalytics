@@ -455,7 +455,7 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
         mad = 1e-6
     mod_z = 0.6745 * (residuals - med_res) / mad
     data["mod_zscore"] = mod_z
-    data["is_stat_anomaly"] = data["mod_zscore"] < -1
+    data["is_stat_anomaly"] = data["mod_zscore"].abs() > 3.5
 
     # 3. MACHINE LEARNING ANOMALY DETECTION (Isolation Forest)
     features = ["log_approval"]

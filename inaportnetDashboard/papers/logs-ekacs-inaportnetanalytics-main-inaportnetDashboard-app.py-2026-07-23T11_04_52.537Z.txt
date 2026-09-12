@@ -1,0 +1,193 @@
+
+[     UTC     ] Logs for inaportnetanalytics.streamlit.app/Database_Viewer
+────────────────────────────────────────────────────────────────────────────────────────
+[09:59:39] 🚀 Starting up repository: 'inaportnetanalytics', branch: 'main', main module: 'inaportnetDashboard/app.py'
+[09:59:39] 🐙 Cloning repository...
+[09:59:41] 🐙 Cloning into '/mount/src/inaportnetanalytics'...
+
+[09:59:41] 🐙 Cloned repository!
+[09:59:41] 🐙 Pulling code changes from Github...
+[09:59:42] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.14.6 environment at /home/adminuser/venv
+Resolved 70 packages in 854ms
+Prepared 70 packages in 2.32s
+Installed 70 packages in 465ms
+ + altair==6.2.2
+ + annotated-types==0.7.0
+ + anyio==4.14.2
+ + attrs==26.1.0
+ + blinker==1.9.0
+ +[2026-07-23 09:59:46.327605]  certifi==2026.7.22
+ + cffi==2.1.0
+ + charset-normalizer==3.4.9
+ + click==8.4.2
+ + cryptography==49.0.0
+ + deprecation==2.1.0
+ + et-xmlfile==2.0.0
+ + gitdb==4.0.12
+ + gitpython==3.1.55
+ + h11==[2026-07-23 09:59:46.327904] 0.16.0
+ + h2==4.3.0
+ + hpack==4.2.0
+ + httpcore==1.0.9
+ + httptools==0.8.0
+ + httpx==0.28.1
+ + hyperframe==6.1.0
+ + idna==3.18[2026-07-23 09:59:46.328118] 
+ + itsdangerous==2.2.0
+ + jinja2==3.1.6
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markupsafe==3.0.3
+ + multidict==6.7.1
+ + narwhals==2.24.0[2026-07-23 09:59:46.328369] 
+ + numpy==2.5.1
+ + openpyxl==3.1.5
+ + packaging==26.2
+ + pandas==3.0.5
+ + pillow==12.3.0
+ +[2026-07-23 09:59:46.328592]  plotly==6.9.0
+ + postgrest==2.31.0
+ + propcache==0.5.2
+ + protobuf==7.35.1
+ + pyarrow==24.0.0
+ + pycparser==3.0
+ [2026-07-23 09:59:46.328747] + pydantic==2.13.4
+ + pydantic-core==2.46.4
+ + pydeck==0.9.3
+ + pyjwt==2.13.0
+ + python-dateutil==[2026-07-23 09:59:46.328902] 2.9.0.post0
+ + python-dotenv==1.2.2
+ + python-multipart==0.0.32
+ + realtime==2.31.0
+ +[2026-07-23 09:59:46.329058]  referencing==0.37.0
+ + requests==2.34.2
+ + rpds-py==2026.6.3
+ + scipy==1.18.0[2026-07-23 09:59:46.329201] 
+ + six==1.17.0
+ + smmap==5.0.3
+ + starlette==1.3.1
+ + storage3==2.31.0[2026-07-23 09:59:46.329360] 
+ + streamlit==1.60.0
+ + strenum==0.4.15
+ + supabase==2.31.0
+ + supabase-auth==2.31.0
+ +[2026-07-23 09:59:46.329487]  supabase-functions==2.31.0
+ + tenacity==9.1.4
+ + toml==0.10.2
+ + typing-extensions==4.16.0
+ + [2026-07-23 09:59:46.329595] typing-inspection==0.4.2
+ + urllib3==2.7.0
+ + uvicorn==0.51.0
+ [2026-07-23 09:59:46.329711] + watchdog==6.0.0
+ + websockets==15.0.1
+ + [2026-07-23 09:59:46.329825] yarl==1.24.5
+Checking if Streamlit is installed
+Found Streamlit version 1.60.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.14.6 environment at /home/adminuser/venv
+Resolved 4 packages in 123ms
+Prepared 4 packages in 101ms
+Installed 4 packages in 10ms
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ + pygments==2.20.0
+ + rich==15.0.0
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[09:59:50] 🐍 Python dependencies were installed from /mount/src/inaportnetanalytics/inaportnetDashboard/requirements.txt using uv.
+Check if streamlit is installed
+Streamlit is already installed
+[09:59:51] 📦 Processed dependencies!
+2026-07-23 09:59:53.447 Uvicorn server started on :::8501
+
+
+
+[11:03:16] 🐙 Pulling code changes from Github...
+[11:03:18] 📦 Processing dependencies...
+[11:03:18] 📦 Processed dependencies!
+[11:03:19] 🔄 Updated app!
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:129 in exec_func_with_error_handling                        
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:805 in code_to_exec                                     
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:170 in _mpa_v1                                          
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/navigation/page.  
+  py:490 in run                                                                 
+                                                                                
+  /mount/src/inaportnetanalytics/inaportnetDashboard/pages/5_🗄️_Database_Viewe  
+  r.py:11 in <module>                                                           
+                                                                                
+      8 import pandas as pd                                                     
+      9 import io                                                               
+     10 import json                                                             
+  ❱  11 from modules.database import (                                          
+     12 │   is_connected, get_database_stats, fetch_pkk_records_paginated,      
+     13 │   fetch_pkk_records, generate_sql_dump                                
+     14 )                                                                       
+────────────────────────────────────────────────────────────────────────────────
+ImportError: cannot import name 'get_database_stats' from 'modules.database' 
+(/mount/src/inaportnetanalytics/inaportnetDashboard/modules/database.py)
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:129 in exec_func_with_error_handling                        
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:805 in code_to_exec                                     
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:170 in _mpa_v1                                          
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/navigation/page.  
+  py:490 in run                                                                 
+                                                                                
+  /mount/src/inaportnetanalytics/inaportnetDashboard/pages/5_🗄️_Database_Viewe  
+  r.py:11 in <module>                                                           
+                                                                                
+      8 import pandas as pd                                                     
+      9 import io                                                               
+     10 import json                                                             
+  ❱  11 from modules.database import (                                          
+     12 │   is_connected, get_database_stats, fetch_pkk_records_paginated,      
+     13 │   fetch_pkk_records, generate_sql_dump                                
+     14 )                                                                       
+────────────────────────────────────────────────────────────────────────────────
+ImportError: cannot import name 'get_database_stats' from 'modules.database' 
+(/mount/src/inaportnetanalytics/inaportnetDashboard/modules/database.py)
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:129 in exec_func_with_error_handling                        
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:805 in code_to_exec                                     
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:170 in _mpa_v1                                          
+                                                                                
+  /home/adminuser/venv/lib/python3.14/site-packages/streamlit/navigation/page.  
+  py:490 in run                                                                 
+                                                                                
+  /mount/src/inaportnetanalytics/inaportnetDashboard/pages/5_🗄️_Database_Viewe  
+  r.py:11 in <module>                                                           
+                                                                                
+      8 import pandas as pd                                                     
+      9 import io                                                               
+     10 import json                                                             
+  ❱  11 from modules.database import (                                          
+     12 │   is_connected, get_database_stats, fetch_pkk_records_paginated,      
+     13 │   fetch_pkk_records, generate_sql_dump                                
+     14 )                                                                       
+────────────────────────────────────────────────────────────────────────────────
+ImportError: cannot import name 'get_database_stats' from 'modules.database' 
+(/mount/src/inaportnetanalytics/inaportnetDashboard/modules/database.py)
