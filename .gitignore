@@ -49,6 +49,9 @@ ENV/
 *.swo
 .DS_Store
 Thumbs.db
+.omop/*
+.kilo/*
+.codegraph/*
 
 # ==========================================
 # 5. Logs & Temp Files
