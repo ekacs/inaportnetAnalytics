@@ -63,7 +63,7 @@ st.markdown("""
     .metric-card .label { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
     .metric-card .sub   { font-size: 0.75rem; color: #adb5bd; margin-top: 1px; }
 
-    /* Nav cards */
+    /* Nav cards */gs
     .nav-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
     .nav-card {
         background: white;
@@ -128,13 +128,23 @@ with st.sidebar:
 
     # Status data di sesi
     st.markdown("**Data Sesi**")
-    from modules.database import get_database_stats
+    from modules.database import get_database_stats, fetch_pkk_records
+    from modules.preprocessing import preprocess
+    from modules.progress import make_fetch_progress
 
-    if "df" in st.session_state and not st.session_state["df"].empty:
-        _db_check = get_database_stats()
-        if _db_check.get("total_records", 0) == 0:
-            st.session_state.pop("df", None)
-            st.rerun()
+    if "df" not in st.session_state or st.session_state["df"].empty:
+        try:
+            _bar, _status, _cb, _t0, _done = make_fetch_progress(st, label="📥 Auto-load")
+            _auto_df = fetch_pkk_records(progress_callback=_cb, chunk_size=50000)
+            if not _auto_df.empty:
+                _status.info(f"⚙️ Preprocessing {len(_auto_df):,} record...")
+                st.session_state["df"] = preprocess(_auto_df)
+                _done(len(_auto_df), "database lokal")
+            else:
+                _bar.empty()
+                _status.empty()
+        except Exception:
+            pass
 
     if "df" in st.session_state and not st.session_state["df"].empty:
         n = len(st.session_state["df"])

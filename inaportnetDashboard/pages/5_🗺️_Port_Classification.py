@@ -12,6 +12,7 @@ from modules.analysis import (
 from modules.visualization import plot_quadrant_scatter, plot_performance_ranking
 from modules.theme import render_theme_selector
 from modules.database import is_connected, get_db_status_info
+from modules.progress import timed_status
 
 st.set_page_config(page_title="Port Classification · Inaportnet", page_icon="🗺️", layout="wide")
 render_theme_selector()
@@ -53,11 +54,17 @@ with st.sidebar:
         try:
             from modules.database import fetch_pkk_records
             from modules.preprocessing import preprocess
-            _auto_df = fetch_pkk_records()
+            from modules.progress import make_fetch_progress
+            _bar, _status, _cb, _t0, _done = make_fetch_progress(st, label="📥 Auto-load")
+            _auto_df = fetch_pkk_records(progress_callback=_cb, chunk_size=50000)
             if not _auto_df.empty:
+                _status.info(f"⚙️ Preprocessing {len(_auto_df):,} record...")
                 df_sess = preprocess(_auto_df)
                 st.session_state["df"] = df_sess
-                st.info("📂 Data dimuat otomatis dari database lokal.")
+                _done(len(df_sess), "database lokal")
+            else:
+                _bar.empty()
+                _status.empty()
         except Exception:
             pass
 
@@ -117,7 +124,8 @@ def compute_classification(df_hash: pd.DataFrame) -> pd.DataFrame:
     result  = classify_quadrant(perf)
     return result
 
-df_classified = compute_classification(df)
+with timed_status(st, "🗺️ Menghitung indeks klasifikasi pelabuhan"):
+    df_classified = compute_classification(df)
 
 if df_classified.empty:
     st.warning("⚠️ Tidak cukup data untuk menghitung indeks performa.")

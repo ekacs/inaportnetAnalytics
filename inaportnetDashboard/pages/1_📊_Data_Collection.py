@@ -12,6 +12,7 @@ import io
 import zipfile
 from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import preprocess, validate_uploaded_file
+from modules.progress import make_fetch_progress, make_insert_progress, timed_status, fmt_dur
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
     get_database_stats, get_db_status_info, deduplicate_dataframe,
@@ -82,14 +83,25 @@ with st.sidebar:
     import sqlite3 as _sqlite3
     _db_path = _db_mod.SQLITE_DB_PATH
     if os.path.exists(_db_path):
-        _conn = _sqlite3.connect(_db_path)
-        _cur = _conn.cursor()
-        _cur.execute("SELECT COUNT(*) FROM pkk_records")
-        _total = _cur.fetchone()[0]
-        _conn.close()
-        _est = _total / 150000
-        _est_txt = f"~{_est:.0f} detik" if _est < 60 else f"~{_est/60:.1f} menit"
-        st.info(f"📦 **Database:** {_total:,} record | ⏱️ **Estimasi load:** {_est_txt} | 💡 *Data siap, page lain bisa dibuka.*")
+        try:
+            _conn = _sqlite3.connect(_db_path, timeout=30)
+            try:
+                _conn.execute("PRAGMA busy_timeout = 30000;")
+            except Exception:
+                pass
+            _cur = _conn.cursor()
+            _cur.execute("SELECT COUNT(*) FROM pkk_records")
+            _total = _cur.fetchone()[0]
+            _est = _total / 150000
+        except Exception:
+            pass
+        finally:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+    #    _est_txt = f"~{_est:.0f} detik" if _est < 60 else f"~{_est/60:.1f} menit"
+    #    st.info(f"📦 **Database:** {_total:,} record | ⏱️ **Estimasi load:** {_est_txt} | 💡 *Data siap, page lain bisa dibuka.*")
 
 
     if "df" in st.session_state and not st.session_state["df"].empty:
@@ -268,6 +280,7 @@ with tab_scrape:
                 st.toast(f"⚠️ {err_msg}")
 
             # ── Jalankan scraping ──
+            _t_scrape = time.perf_counter()
             with st.spinner("Scraping sedang berjalan..."):
                 df_raw = run_full_scraping(
                     port_codes=selected_port_codes,
@@ -285,6 +298,7 @@ with tab_scrape:
             progress_bar.empty()
             status_txt.empty()
             info_cols.empty()
+            st.caption(f"⏱️ Scraping selesai dalam **{fmt_dur(time.perf_counter() - _t_scrape)}**.")
 
             # Jika ada log error selama proses, tampilkan popup toast rangkuman
             if scraping_errors:
@@ -297,7 +311,7 @@ with tab_scrape:
                 st.warning("⚠️ Tidak ada data yang berhasil diambil. Periksa koneksi atau parameter.")
             else:
                 # Preprocessing & Deduplikasi
-                with st.spinner("Memproses & mendeteksi duplikasi data..."):
+                with timed_status(st, "🧹 Memproses & mendeteksi duplikasi hasil scraping"):
                     df_processed = preprocess(df_raw)
                     df_processed, n_dups = deduplicate_dataframe(df_processed)
 
@@ -309,10 +323,10 @@ with tab_scrape:
                 result_area.dataframe(df_processed.head(10), width="stretch")
 
                 db_target = "SQLite (Lokal)"
-                with st.spinner(f"Menyimpan ke {db_target}..."):
-                    res = insert_pkk_records(df_processed)
+                _ibar, _istatus, _icb, _it0, _idone = make_insert_progress(st, target=db_target)
+                res = insert_pkk_records(df_processed, progress_callback=_icb)
                 if res["success"]:
-                    st.success(f"💾 **{res['inserted']:,} record** tersimpan ke {db_target}.")
+                    _idone(res["inserted"], db_target)
                     st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
                 else:
                     st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
@@ -468,7 +482,7 @@ with tab_upload:
                     # Aliasing kolom penting jika belum ada
                     if "code" in df_final.columns and "port_code" not in df_final.columns:
                         df_final["port_code"] = df_final["code"]
-                    
+
                     proc_progress.progress(70)
                     df_final, n_dups = deduplicate_dataframe(df_final)
                     proc_progress.progress(100)
@@ -482,26 +496,26 @@ with tab_upload:
                     st.success(f"✅ **{len(df_final):,} record bersih** siap dianalisis.")
 
                     db_target = "SQLite (Lokal)"
-                    db_status = st.empty()
-                    db_progress = st.progress(0)
+                    _ubar, _ustatus, _ucb, _ut0, _udone = make_insert_progress(st, target=db_target)
 
-                    tot_recs = len(df_final)
-                    def db_progress_cb(cur, tot):
-                        pct = int(cur / tot * 100) if tot > 0 else 0
-                        db_progress.progress(pct)
-                        db_status.info(
-                            f"💾 **Menyimpan ke {db_target}:** {cur:,} / {tot:,} record ({pct}%) "
-                            f"— Estimasi sisa waktu: ~{max(0, round((tot - cur) / 3000, 1))} detik"
-                        )
-
-                    res = insert_pkk_records(df_final)
-
-                    db_status.empty()
-                    db_progress.empty()
+                    res = insert_pkk_records(df_final, progress_callback=_ucb)
 
                     if res["success"]:
-                        st.success(f"💾 **{res['inserted']:,} record** berhasil tersimpan ke {db_target}.")
+                        _udone(res["inserted"], db_target)
                         st.toast(f"💾 {res['inserted']:,} record tersimpan ke {db_target}.", icon="✅")
+                        # Banner navigasi — data sudah siap untuk halaman analisis
+                        st.markdown("""
+<div style="background:linear-gradient(90deg,#1a4a7a,#2471a3);color:white;padding:1rem 1.2rem;
+            border-radius:10px;margin-top:1rem;font-size:0.95rem;line-height:1.7;">
+🎉 <b>Data berhasil disimpan ke database lokal!</b><br>
+Data kini tersedia di seluruh halaman analisis. Lanjutkan ke:<br>
+&nbsp;&nbsp;🚦 <b>Traffic Overview</b> — volume & tren lalu lintas kapal<br>
+&nbsp;&nbsp;📋 <b>Service Performance</b> — kinerja layanan PKK & SLA<br>
+&nbsp;&nbsp;🗺️ <b>Port Classification</b> — klasifikasi & komparasi pelabuhan<br>
+&nbsp;&nbsp;🛡️ <b>Fraud Risk Screening</b> — deteksi anomali & risiko
+</div>
+""", unsafe_allow_html=True)
+                        st.rerun()
                     else:
                         st.error(f"❌ Gagal menyimpan ke Database: {res['error']}")
 
@@ -564,12 +578,25 @@ with tab_db:
 
     if st.button("📥 Muat dari Database", type="primary", width="stretch"):
         actual_source_label = db_source if db_source != "Otomatis" else db_info['short_label']
-        with st.spinner(f"Mengambil data dari {actual_source_label}..."):
-            df_db = fetch_pkk_records(
-                port_codes=filter_codes_db if filter_codes_db else None,
-                year=year_db,
-                angkutan=angkutan_db_codes if len(angkutan_db_codes) < 2 else None,
-                            )
+        _t0 = time.perf_counter()
+        _bar, _status, _cb_fetch, _, _ = make_fetch_progress(st, label="📥 Memuat")
+        _t_load0 = time.perf_counter()
+
+        def _fmt_dur(sec: float) -> str:
+            return fmt_dur(sec)
+
+        def _cb_wrap(done: int, total: int, phase: str):
+            _cb_fetch(done, total, phase)
+
+        df_db = fetch_pkk_records(
+            port_codes=filter_codes_db if filter_codes_db else None,
+            year=year_db,
+            angkutan=angkutan_db_codes if len(angkutan_db_codes) < 2 else None,
+            progress_callback=_cb_wrap,
+            chunk_size=50000,
+        )
+        _bar.progress(1.0, text="⚙️ Preprocessing...")
+        _status.info(f"⚙️ Preprocessing... • ⏱️ {_fmt_dur(time.perf_counter() - _t_load0)}")
 
         if df_db.empty:
             st.warning(f"⚠️ Tidak ada data ditemukan di {actual_source_label} dengan filter tersebut.")
@@ -583,12 +610,14 @@ with tab_db:
                     )
                     st.caption("Pastikan data di Supabase memiliki kolom 'year' dengan nilai yang sesuai.")
                     if st.button("🔍 Debug: Lihat Semua Data (Tanpa Filter)", key="debug_sqlite_all"):
-                        with st.spinner("Query tanpa filter ke Supabase..."):
-                            df_all = fetch_pkk_records()
+                        _dbar, _dstatus, _d_cb, _dt0, _ddone = make_fetch_progress(st, label="📥 Debug load")
+
+                        df_all = fetch_pkk_records(progress_callback=_d_cb, chunk_size=50000)
                         if df_all.empty:
-                            st.error("❌ Database kosong atau koneksi gagal.")
+                            _dbar.empty()
+                            _dstatus.warning("⚠️ Tidak ada data di Supabase.")
                         else:
-                            st.success(f"✅ Supabase punya {len(df_all):,} record total.")
+                            _ddone(len(df_all), "Supabase")
                             st.dataframe(df_all.head(5), width="stretch")
                             if "year" in df_all.columns:
                                 st.write("Nilai 'year' yang ada:", df_all["year"].unique().tolist())
@@ -597,9 +626,26 @@ with tab_db:
         else:
             df_db = preprocess(df_db)
             st.session_state["df"] = df_db
-            st.success(f"✅ **{len(df_db):,} record** berhasil dimuat dari {actual_source_label}.")
+            _dur = time.perf_counter() - _t_load0
+            _bar.progress(1.0, text="✅ Selesai")
+            _status.success(
+                f"✅ **{len(df_db):,} record** dimuat dari {actual_source_label}"
+                f" dalam **{_fmt_dur(_dur)}**."
+            )
             with st.expander("🔍 Preview Data"):
                 st.dataframe(df_db.head(20), width="stretch")
+            # Banner navigasi setelah load dari DB
+            st.markdown("""
+<div style="background:linear-gradient(90deg,#1a4a7a,#2471a3);color:white;padding:1rem 1.2rem;
+            border-radius:10px;margin-top:0.5rem;font-size:0.95rem;line-height:1.7;">
+✅ <b>Data berhasil dimuat ke sesi!</b> Lanjutkan ke halaman analisis:<br>
+&nbsp;&nbsp;🚦 <b>Traffic Overview</b> &nbsp;|&nbsp;
+📋 <b>Service Performance</b> &nbsp;|&nbsp;
+🗺️ <b>Port Classification</b> &nbsp;|&nbsp;
+🛡️ <b>Fraud Risk Screening</b>
+</div>
+""", unsafe_allow_html=True)
+            st.rerun()
 
 # ── Fitur: Tampilkan file di ./data & Analisis Kualitas Data ──
     st.markdown("---")
@@ -755,7 +801,7 @@ with tab_db:
         disabled=not confirm_del,
         key="btn_delete_all",
     ):
-        with st.spinner("Menghapus data..."):
+        with timed_status(st, f"🗑️ Menghapus semua data dari {del_target}"):
             if del_target == "Supabase Cloud":
                 res = delete_all_sqlite_records()
             else:
@@ -786,7 +832,8 @@ with tab_export:
         # Export CSV
         with col_ex1:
             st.markdown("#### 📄 Export CSV")
-            csv_buf = df_current.to_csv(index=False, encoding="utf-8-sig")
+            with timed_status(st, "📄 Menyiapkan file CSV"):
+                csv_buf = df_current.to_csv(index=False, encoding="utf-8-sig")
             st.download_button(
                 label="⬇️ Download CSV",
                 data=csv_buf,
@@ -802,17 +849,18 @@ with tab_export:
                 st.info("Data kosong — tidak ada yang bisa diekspor.")
             else:
                 try:
-                    excel_buf = io.BytesIO()
-                    with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                        df_current.to_excel(writer, sheet_name="Data PKK", index=False)
+                    with timed_status(st, "📊 Menyusun file Excel (data + ringkasan)"):
+                        excel_buf = io.BytesIO()
+                        with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+                            df_current.to_excel(writer, sheet_name="Data PKK", index=False)
 
-                        if "port_code" in df_current.columns and "approval_minutes" in df_current.columns:
-                            from modules.analysis import compute_port_summary
-                            summary = compute_port_summary(df_current)
-                            if not summary.empty:
-                                summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
+                            if "port_code" in df_current.columns and "approval_minutes" in df_current.columns:
+                                from modules.analysis import compute_port_summary
+                                summary = compute_port_summary(df_current)
+                                if not summary.empty:
+                                    summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
 
-                    excel_buf.seek(0)
+                        excel_buf.seek(0)
                     st.download_button(
                         label="⬇️ Download Excel",
                         data=excel_buf,

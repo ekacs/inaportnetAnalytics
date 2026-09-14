@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from modules.database import is_connected, get_db_status_info
+from modules.progress import timed_status
 from modules.theme import render_theme_selector
 from modules.scraper import load_port_reference
 from modules.analysis import (
@@ -124,12 +125,18 @@ if not has_data:
     try:
         from modules.database import fetch_pkk_records
         from modules.preprocessing import preprocess
+        from modules.progress import make_fetch_progress
 
-        _auto_df = fetch_pkk_records()
+        _bar, _status, _cb, _t0, _done = make_fetch_progress(st, label="📥 Auto-load")
+        _auto_df = fetch_pkk_records(progress_callback=_cb, chunk_size=50000)
         if not _auto_df.empty:
+            _status.info(f"⚙️ Preprocessing {len(_auto_df):,} record...")
             st.session_state["df"] = preprocess(_auto_df)
             has_data = True
-            st.info("📂 Data dimuat otomatis dari database lokal.")
+            _done(len(_auto_df), "database lokal")
+        else:
+            _bar.empty()
+            _status.empty()
     except Exception:
         pass
 
@@ -193,14 +200,6 @@ if not has_data:
         st.rerun()
 
 if "df" in st.session_state and not st.session_state["df"].empty:
-    from modules.database import get_database_stats
-
-    _db_check = get_database_stats()
-    if _db_check.get("total_records", 0) == 0:
-        st.session_state.pop("df", None)
-        st.rerun()
-
-if "df" in st.session_state and not st.session_state["df"].empty:
 
     _port_ref = load_port_reference("data/port_code.xlsx")
     port_name_map = (
@@ -211,9 +210,10 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         else {}
     )
 
-    # Jalankan Analisis CFRSI & Deteksi Anomali
-    with st.spinner(
-        "Mengoperasikan Engine Deteksi Anomali 3-Lapis (Rule-Based, OLS Z-Score, Isolation Forest)..."
+    # Jalankan Analisis CFRSI & Deteksi Anomali (monolit: Rule + OLS Z-Score + Isolation Forest)
+    with timed_status(
+        st,
+        "🛡️ Engine Deteksi Anomali 3-Lapis (Rule-Based, OLS Z-Score, Isolation Forest)",
     ):
         df_raw = st.session_state["df"]
         df_analyzed, cfrsi_df = compute_fraud_risk_analysis(df_raw)
@@ -420,6 +420,31 @@ if "df" in st.session_state and not st.session_state["df"].empty:
             st.plotly_chart(
                 plot_volume_vs_red_flag_percentage(cfrsi_df), use_container_width=True
             )
+
+        # ── Download transaksi Red Flag (CSV) ──
+        _rf_cols = [
+            "PKK_number", "vessel_name", "port_code", "port", "service",
+            "submission", "response", "approval_minutes", "approval_hours",
+            "hour", "day", "gt",
+            "rf_quick_approval", "rf_long_duration", "rf_low_oversight",
+            "rf_gt_manipulation", "rf_same_vessel_2ports",
+            "red_flag_count",
+        ]
+        _rf_export_cols = [c for c in _rf_cols if c in df_analyzed.columns]
+        _rf_df = df_analyzed[df_analyzed["is_red_flag"] == True][_rf_export_cols].copy()
+
+        if _rf_df.empty:
+            st.info("✅ Tidak ada transaksi Red Flag untuk diunduh.")
+        else:
+            _rf_csv = _rf_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+            st.download_button(
+                f"💾 Download Transaksi Red Flag (.csv) — {_rf_df.shape[0]:,} record",
+                _rf_csv,
+                file_name="transaksi_redflag_rule_based.csv",
+                mime="text/csv",
+                key="dl_redflag_rule_based",
+            )
+            st.caption("Berisi seluruh transaksi dengan minimal 1 red flag, beserta penanda 5 kriteria (kolom rf_*).")
 
         st.markdown("---")
         st.markdown("#### 🔍 Detil 5 Kriteria Red Flag & Dasar Justifikasi Regulasi")

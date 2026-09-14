@@ -60,11 +60,17 @@ with st.sidebar:
         try:
             from modules.database import fetch_pkk_records
             from modules.preprocessing import preprocess
-            _auto_df = fetch_pkk_records()
+            from modules.progress import make_fetch_progress
+            _bar, _status, _cb, _t0, _done = make_fetch_progress(st, label="📥 Auto-load")
+            _auto_df = fetch_pkk_records(progress_callback=_cb, chunk_size=50000)
             if not _auto_df.empty:
+                _status.info(f"⚙️ Preprocessing {len(_auto_df):,} record...")
                 df_sess = preprocess(_auto_df)
                 st.session_state["df"] = df_sess
-                st.info("📂 Data dimuat otomatis dari database lokal.")
+                _done(len(df_sess), "database lokal")
+            else:
+                _bar.empty()
+                _status.empty()
         except Exception:
             pass
 
@@ -120,7 +126,8 @@ if df.empty:
     st.stop()
 
 # ── KPI Cards ─────────────────────────────────────────────────
-with st.spinner('Menghitung statistik...'):
+from modules.progress import timed_status
+with timed_status(st, "📊 Menghitung statistik nasional"):
     stats = get_national_stats(df)
 
 c1, c2, c3, c4 = st.columns(4)
