@@ -16,94 +16,24 @@ from modules.visualization import (
 )
 from modules.database import is_connected, get_db_status_info
 from modules.theme import render_theme_selector
+from modules.ui import (
+    page_css, render_sidebar_nav, load_session_df, render_data_filters,
+)
 
 st.set_page_config(page_title="Traffic Overview · Inaportnet", page_icon="🚦", layout="wide")
 render_theme_selector()
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.kpi-card {
-    background: linear-gradient(135deg, #1a4a7a, #2471a3);
-    color: white;
-    border-radius: 14px;
-    padding: 1.2rem 1rem;
-    text-align: center;
-    box-shadow: 0 4px 16px rgba(26,74,122,0.18);
-}
-.kpi-card .val   { font-size: 2rem; font-weight: 700; }
-.kpi-card .label { font-size: 0.82rem; opacity: 0.85; margin-top: 3px; }
-.section-title   { font-size: 1.1rem; font-weight: 600; color: #1a4a7a; margin: 1.5rem 0 0.5rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
-.chart-card      { background: white; border-radius: 14px; padding: 1.2rem; border: 1px solid #e8ecf0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 1rem; }
-footer{visibility:hidden;} #MainMenu{visibility:hidden;} [data-testid="stSidebarNav"]{display:none !important;}
-</style>
-""", unsafe_allow_html=True)
+page_css()
 
-# ── Sidebar ───────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🚢 Inaportnet Analytics")
-    st.markdown("---")
-    st.markdown("**Navigasi**")
-    st.page_link("app.py",                               label="🏠 Beranda")
-    st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-#     st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
-    st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
-    st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
-    st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
-    st.markdown("---")
-
-    # Filter per pelabuhan
-    df_sess = st.session_state.get("df", pd.DataFrame())
-    if df_sess.empty:
-        try:
-            from modules.database import fetch_pkk_records
-            from modules.preprocessing import preprocess
-            from modules.progress import make_fetch_progress
-            _bar, _status, _cb, _t0, _done = make_fetch_progress(st, label="📥 Auto-load")
-            _auto_df = fetch_pkk_records(progress_callback=_cb, chunk_size=50000)
-            if not _auto_df.empty:
-                _status.info(f"⚙️ Preprocessing {len(_auto_df):,} record...")
-                df_sess = preprocess(_auto_df)
-                st.session_state["df"] = df_sess
-                _done(len(df_sess), "database lokal")
-            else:
-                _bar.empty()
-                _status.empty()
-        except Exception:
-            pass
-
-
-    if not df_sess.empty and "port" in df_sess.columns:
-        all_ports = sorted(df_sess["port"].dropna().unique().tolist())
-        selected_ports = st.multiselect(
-            "🏗️ Filter Pelabuhan",
-            options=all_ports,
-            placeholder="Semua pelabuhan",
-            key="traffic_port_filter",
-        )
-    else:
-        selected_ports = []
-
-    # Filter angkutan
-    if not df_sess.empty and "angkutan" in df_sess.columns:
-        angkutan_options = df_sess["angkutan"].dropna().unique().tolist()
-        selected_angkutan = st.multiselect(
-            "🚢 Filter Angkutan",
-            options=angkutan_options,
-            placeholder="Semua",
-            key="traffic_ang_filter",
-        )
-    else:
-        selected_angkutan = []
-
-    st.markdown("---")
-    db_info = get_db_status_info()
-    st.markdown("**Status Database**")
-    st.success(f"{db_info['label']}")
-    if "df" in st.session_state and not st.session_state["df"].empty:
-        st.success(f"✅ {len(st.session_state['df']):,} record")
+# ── Sidebar ────────────────────────────────────
+render_sidebar_nav()
+# Filter + status DB: helper bersama (dulu 4x copy-paste per halaman)
+df_sess = load_session_df()
+selected_ports, selected_angkutan, _ = render_data_filters(
+    df_sess,
+    port_key="traffic_port_filter",
+    angkutan_key="traffic_ang_filter",
+)
 
 # ── Cek data ──────────────────────────────────────────────────
 st.markdown("# 🚦 Traffic Overview")

@@ -20,6 +20,7 @@ from modules.database      import (
 
 )
 from modules.theme import render_theme_selector
+from modules.ui import page_css, render_sidebar_nav
 
 # Ekstensi yang boleh ditulis permanen ke ./data saat backup upload.
 # Nombre allowlist, bukan blacklist: file di luar daftar ini hanya dibaca
@@ -30,10 +31,10 @@ st.set_page_config(page_title="Data Collection · Inaportnet", page_icon="📊",
 render_theme_selector()
 
 # ── CSS ───────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+# CSS global datang dari modules.ui; blok di bawah hanya gaya khas
+# halaman pengumpulan data (section-header, info-box, stat-pill).
+page_css(
+    extra="""
 .section-header {
     background: linear-gradient(90deg, #1a4a7a, #2471a3);
     color: white;
@@ -61,22 +62,13 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     font-weight:600;
     margin:2px;
 }
-footer{visibility:hidden;} #MainMenu{visibility:hidden;} [data-testid="stSidebarNav"]{display:none !important;}
-</style>
-""", unsafe_allow_html=True)
-
+"""
+)
 # ── Sidebar ───────────────────────────────────────────────────
+# Nav link berasal dari modules.ui (satu sumber kebenaran).
+render_sidebar_nav()
+
 with st.sidebar:
-    st.markdown("### 🚢 Inaportnet Analytics")
-    st.markdown("---")
-    st.markdown("**Navigasi**")
-    st.page_link("app.py",                               label="🏠 Beranda")
-    st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-#     st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
-    st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
-    st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
-    st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
     st.markdown("---")
     db_info = get_db_status_info()
     st.markdown("**Status Database**")

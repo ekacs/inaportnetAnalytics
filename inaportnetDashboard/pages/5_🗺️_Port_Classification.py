@@ -14,92 +14,35 @@ from modules.visualization import plot_quadrant_scatter, plot_performance_rankin
 from modules.theme import render_theme_selector
 from modules.database import is_connected, get_db_status_info
 from modules.progress import timed_status
+from modules.ui import (
+    page_css, render_sidebar_nav, load_session_df, render_data_filters,
+)
 
 st.set_page_config(page_title="Port Classification · Inaportnet", page_icon="🗺️", layout="wide")
 render_theme_selector()
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.section-title { font-size:1.1rem; font-weight:600; color:#1a4a7a; margin:1.5rem 0 0.5rem; border-bottom:2px solid #e2e8f0; padding-bottom:6px; }
-.quadrant-pill {
-    display:inline-block; border-radius:20px; padding:3px 12px;
-    font-size:0.8rem; font-weight:600; margin:2px;
-}
-.q-benchmark { background:#d4efdf; color:#1e8449; }
-.q-efficient { background:#d6eaf8; color:#1a5276; }
-.q-developing{ background:#fdebd0; color:#784212; }
-.q-congested { background:#fadbd8; color:#922b21; }
-.legend-box  { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; font-size:0.88rem; }
-footer{visibility:hidden;} #MainMenu{visibility:hidden;} [data-testid="stSidebarNav"]{display:none !important;}
-</style>
-""", unsafe_allow_html=True)
+page_css()
 
-# ── Sidebar ───────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🚢 Inaportnet Analytics")
-    st.markdown("---")
-    st.markdown("**Navigasi**")
-    st.page_link("app.py",                               label="🏠 Beranda")
-    st.page_link("pages/1_📊_Data_Collection.py",        label="📊 Data Collection")
-#     st.page_link("pages/2_🗄️_Database_Viewer.py",        label="🗄️ Database Viewer")
-    st.page_link("pages/3_🚦_Traffic_Overview.py",       label="🚦 Traffic Overview")
-    st.page_link("pages/4_📋_Service_Performance.py",    label="📋 Service Performance")
-    st.page_link("pages/5_🗺️_Port_Classification.py",    label="🗺️ Port Classification")
-    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",   label="🛡️ Fraud Risk Screening")
-    st.markdown("---")
-
-    df_sess = st.session_state.get("df", pd.DataFrame())
-    if df_sess.empty:
-        try:
-            from modules.database import fetch_pkk_records
-            from modules.preprocessing import preprocess
-            from modules.progress import make_fetch_progress
-            _bar, _status, _cb, _t0, _done = make_fetch_progress(st, label="📥 Auto-load")
-            _auto_df = fetch_pkk_records(progress_callback=_cb, chunk_size=50000)
-            if not _auto_df.empty:
-                _status.info(f"⚙️ Preprocessing {len(_auto_df):,} record...")
-                df_sess = preprocess(_auto_df)
-                st.session_state["df"] = df_sess
-                _done(len(df_sess), "database lokal")
-            else:
-                _bar.empty()
-                _status.empty()
-        except Exception:
-            pass
-
-
-
-    # Filter angkutan
-    if not df_sess.empty and "angkutan" in df_sess.columns:
-        angk_opts = df_sess["angkutan"].dropna().unique().tolist()
-        selected_angkutan = st.multiselect(
-            "🚢 Filter Angkutan", options=angk_opts,
-            placeholder="Semua", key="class_ang_filter",
-        )
-    else:
-        selected_angkutan = []
-
-    # Filter kuadran
-    selected_quadrants = st.multiselect(
-        "🗺️ Filter Kuadran",
-        options=["Benchmark Port", "Efficient Port", "Developing Port", "Congested Port"],
-        placeholder="Semua kuadran",
-        key="class_quad_filter",
-    )
-
-    top_n_rank = st.slider("🏅 Top N Ranking", 5, 50, 20, 5, key="class_topn")
-    st.markdown("---")
-    db_info = get_db_status_info()
-    st.markdown("**Status Database**")
-    st.success(f"{db_info['label']}")
-    if not df_sess.empty:
-        st.success(f"✅ {len(df_sess):,} record")
-
-# ── Header ────────────────────────────────────────────────────
-st.markdown("# 🗺️ Port Classification")
-st.markdown("Klasifikasi 4 kuadran berdasarkan **volume PKK** dan **Composite Performance Index**.")
+# ── Sidebar ────────────────────────────────────
+render_sidebar_nav()
+# Filter + status DB: helper bersama (dulu 4x copy-paste per halaman)
+df_sess = load_session_df()
+selected_ports, selected_angkutan, _extras = render_data_filters(
+    df_sess,
+    port_key="class_port_filter",
+    angkutan_key="class_ang_filter",
+    extra_widgets={
+        "selected_quadrants": lambda: st.multiselect(
+            "🗺️ Filter Kuadran",
+            options=["Benchmark Port", "Efficient Port", "Developing Port", "Congested Port"],
+            placeholder="Semua kuadran",
+            key="class_quad_filter",
+        ),
+        "top_n_rank": lambda: st.slider("🏅 Top N Ranking", 5, 50, 20, 5, key="class_topn"),
+    },
+)
+selected_quadrants = _extras["selected_quadrants"]
+top_n_rank = _extras["top_n_rank"]
 
 df_raw = st.session_state.get("df", pd.DataFrame())
 if df_raw.empty:

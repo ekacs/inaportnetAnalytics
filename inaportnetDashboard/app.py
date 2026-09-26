@@ -4,6 +4,7 @@ app.py — Halaman Utama Inaportnet Analytics Dashboard
 import streamlit as st
 from modules.database import is_connected, get_database_stats, get_db_status_info
 from modules.theme import render_theme_selector
+from modules.ui import page_css, render_sidebar_nav
 
 # ──────────────────────────────────────────────────────────────
 # Page config
@@ -20,12 +21,10 @@ render_theme_selector()
 # ──────────────────────────────────────────────────────────────
 # Custom CSS
 # ──────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
+# CSS global (font, kartu KPI, judul seksi, sembunyikan footer/nav bawaan)
+# datang dari modules.ui; blok di bawah hanya gaya khas beranda.
+page_css(
+    extra="""
     /* Hero header */
     .hero {
         background: linear-gradient(135deg, #0f2d52 0%, #1a4a7a 50%, #2471a3 100%);
@@ -63,7 +62,7 @@ st.markdown("""
     .metric-card .label { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
     .metric-card .sub   { font-size: 0.75rem; color: #adb5bd; margin-top: 1px; }
 
-    /* Nav cards */gs
+    /* Nav cards */
     .nav-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
     .nav-card {
         background: white;
@@ -95,28 +94,16 @@ st.markdown("""
     [data-testid="stSidebar"] * { color: white !important; }
     [data-testid="stSidebar"] .stMarkdown p { color: rgba(255,255,255,0.7) !important; }
     [data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.15); }
-
-    /* Hide Streamlit default footer and default navigation */
-    footer { visibility: hidden; }
-    #MainMenu { visibility: hidden; }
-    [data-testid="stSidebarNav"] { display: none !important; }
-</style>
-""", unsafe_allow_html=True)
+"""
+)
 
 # ──────────────────────────────────────────────────────────────
 # Sidebar
 # ──────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🚢 Inaportnet Analytics")
-    st.markdown("---")
-    st.markdown("**Navigasi**")
-    st.page_link("app.py",                                      label="🏠 Beranda")
-    st.page_link("pages/1_📊_Data_Collection.py",               label="📊 Data Collection")
-#     st.page_link("pages/2_🗄️_Database_Viewer.py", label="🗄️ Database Viewer")
-    st.page_link("pages/3_🚦_Traffic_Overview.py", label="🚦 Traffic Overview")
-    st.page_link("pages/4_📋_Service_Performance.py", label="📋 Service Performance")
-    st.page_link("pages/5_🗺️_Port_Classification.py", label="🗺️ Port Classification")
-    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py",          label="🛡️ Fraud Risk Screening")
+    # Nav link berasal dari modules.ui supaya tidak ada dua daftar navigasi
+    # yang bisa berbeda isi antar halaman.
+    render_sidebar_nav()
     st.markdown("---")
 
     # Status koneksi database

@@ -29,6 +29,7 @@ from modules.visualization import (
     plot_subindices_breakdown,
     plot_risk_category_distribution,
 )
+from modules.ui import page_css, render_sidebar_nav
 
 # ──────────────────────────────────────────────────────────────
 # Page Config
@@ -42,13 +43,11 @@ st.set_page_config(
 
 render_theme_selector()
 
-# Custom CSS
-st.markdown(
-    """
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
+# CSS global + gaya khas halaman ini (hero & metric card CFRSI, sidebar gelap).
+# CSS global passing lewat modules.ui supaya font/KPI/footer tidak lagi
+# diulang tangan di tiap halaman.
+page_css(
+    extra="""
     .hero-fraud {
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #780206 100%);
         border-radius: 16px;
@@ -73,31 +72,28 @@ st.markdown(
 
     [data-testid="stSidebar"] { background: #0f2d52; }
     [data-testid="stSidebar"] * { color: white !important; }
-    [data-testid="stSidebarNav"] { display: none !important; }
-</style>
-""",
-    unsafe_allow_html=True,
+"""
 )
 
 # ──────────────────────────────────────────────────────────────
 # Sidebar
 # ──────────────────────────────────────────────────────────────
+# Nav link berasal dari modules.ui (satu sumber kebenaran). Halaman ini tidak
+# memakai filter pelabuhan/angkutan, jadi blok di bawah nav dibuat di sini.
+render_sidebar_nav()
+
 with st.sidebar:
-    st.markdown("### 🚢 Inaportnet Analytics")
-    st.markdown("---")
-    st.markdown("**Navigasi**")
-    st.page_link("app.py", label="🏠 Beranda")
-    st.page_link("pages/1_📊_Data_Collection.py", label="📊 Data Collection")
-    #     st.page_link("pages/2_🗄️_Database_Viewer.py",               label="🗄️ Database Viewer")
-    st.page_link("pages/3_🚦_Traffic_Overview.py", label="🚦 Traffic Overview")
-    st.page_link("pages/4_📋_Service_Performance.py", label="📋 Service Performance")
-    st.page_link("pages/5_🗺️_Port_Classification.py", label="🗺️ Port Classification")
-    st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py", label="🛡️ Fraud Risk Screening")
-    st.markdown("---")
-    db_info = get_db_status_info()
     st.markdown("**Status Database**")
-    st.success(f"{db_info['label']}")
+    st.success(get_db_status_info()["label"])
     st.markdown("---")
+    st.markdown("**Metodologi Riset**")
+    st.caption("Paper: Wijaya & Setyawan (2026)")
+    st.caption("Kerangka CFRSI 3-Lapis (Rule, Stat, ML)")
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:0.75rem; opacity:0.5;">v3.0 · 2026 CFRSI Edition</p>',
+        unsafe_allow_html=True,
+    )
     st.markdown("**Metodologi Riset**")
     st.caption("Paper: Wijaya & Setyawan (2026)")
     st.caption("Kerangka CFRSI 3-Lapis (Rule, Stat, ML)")
