@@ -18,6 +18,9 @@ from modules.scraper import load_port_reference
 from modules.analysis import (
     compute_fraud_risk_analysis,
     get_fraud_national_summary,
+    IF_CONTAMINATION,
+    IF_MAX_SAMPLES,
+    IF_N_ESTIMATORS,
 )
 from modules.visualization import (
     plot_volume_vs_red_flag_percentage,
@@ -224,12 +227,26 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     # KPI Metric Cards
     # ──────────────────────────────────────────────────────────────
     c1, c2, c3, c4, c5 = st.columns(5)
+    # Scope diambil dari rentang tahun data aktual, bukan literal, agar KPI
+    # tidak salah tahun bila dataset diganti.
+    _scope = "Scope —"
+    for _col in ("submission", "year"):
+        if _col == "year" and _col in df_raw.columns:
+            _ys = pd.to_numeric(df_raw[_col], errors="coerce").dropna()
+        elif _col in df_raw.columns:
+            _ys = pd.to_datetime(df_raw[_col], errors="coerce").dt.year.dropna()
+        else:
+            continue
+        if not _ys.empty:
+            _y0, _y1 = int(_ys.min()), int(_ys.max())
+            _scope = f"Scope {_y0}" if _y0 == _y1 else f"Scope {_y0}–{_y1}"
+            break
     metrics = [
         (
             c1,
             f"{summary_stats.get('total_pkk', 0):,}",
             "Total PKK Evaluasi",
-            "Scope 2025",
+            _scope,
         ),
         (
             c2,
@@ -494,8 +511,11 @@ if "df" in st.session_state and not st.session_state["df"].empty:
 
         with st_col2:
             st.markdown("#### 2. Isolation Forest (Unsupervised ML)")
-            st.write("• **Estimators:** 100 trees | **Max Samples:** 256")
-            st.write("• **Contamination:** 0.07 (7% target anomali)")
+            st.write(f"• **Estimators:** {IF_N_ESTIMATORS} trees | **Max Samples:** {IF_MAX_SAMPLES}")
+            st.write(
+                f"• **Contamination:** {IF_CONTAMINATION} "
+                f"({IF_CONTAMINATION:.0%} target anomali)"
+            )
             st.write(
                 "• **Features:** Log Approval Duration, Log GT, Log Port Volume, Hour"
             )

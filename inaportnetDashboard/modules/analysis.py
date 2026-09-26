@@ -15,6 +15,16 @@ from sklearn.preprocessing import StandardScaler
 SLA_THRESHOLD_MINUTES = 30   # PKK harus disetujui dalam 30 menit
 EXTREME_DELAY_MINUTES = 102  # Ambang keterlambatan ekstrem
 
+# ── Hyperparameter Isolation Forest (CFRSI) ──────────────────
+# Single source of truth: dipakai compute_fraud_risk_analysis() di bawah dan
+# ditampilkan apa adanya di halaman Fraud Risk Screening, supaya angka di
+# dashboard tidak pernah berbeda dengan angka yang benar-benar dihitung.
+IF_N_ESTIMATORS = 100
+IF_MAX_SAMPLES = 256
+IF_MAX_FEATURES = 1.0
+IF_CONTAMINATION = 0.05
+IF_RANDOM_STATE = 42
+
 
 # ══════════════════════════════════════════════════════════════
 # TRAFFIC ANALYSIS
@@ -344,7 +354,7 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
     Metodologi (Wijaya & Setyawan, 2026):
     1. Rule-Based Engine (5 Red Flag criteria)
     2. Statistical Engine (OLS Residuals Modified Z-Score < -1)
-    3. Unsupervised Engine (Isolation Forest, contamination=0.05)
+    3. Unsupervised Engine (Isolation Forest, contamination=IF_CONTAMINATION)
     4. Min-Max normalization [0.10 - 1.00] + equal weighting
     5. Klasifikasi 5 Tier Risiko (Percentile-based via pd.qcut)
 
@@ -474,11 +484,11 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
 
     try:
         if_model = IsolationForest(
-            n_estimators=100,
-            max_samples=min(256, len(data)),
-            max_features=1.0,
-            contamination=0.05,
-            random_state=42,
+            n_estimators=IF_N_ESTIMATORS,
+            max_samples=min(IF_MAX_SAMPLES, len(data)),
+            max_features=IF_MAX_FEATURES,
+            contamination=IF_CONTAMINATION,
+            random_state=IF_RANDOM_STATE,
             n_jobs=-1
         )
         preds = if_model.fit_predict(X_scaled)

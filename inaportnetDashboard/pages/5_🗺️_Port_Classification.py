@@ -6,6 +6,7 @@ Analisis kuadran dan ranking composite performance index pelabuhan.
 import streamlit as st
 import pandas as pd
 import io
+from datetime import datetime
 from modules.analysis import (
     compute_port_summary, compute_performance_indices, classify_quadrant,
 )
@@ -217,12 +218,18 @@ df_export = df_classified[show_cols_export].copy()
 df_export[[c for c in show_cols_export if df_export[c].dtype == float]] = \
     df_export[[c for c in show_cols_export if df_export[c].dtype == float]].round(4)
 
+# Nama file diturunkan dari data aktual + tanggal export, bukan tahun hardcoded,
+# supaya tidak pernah salah tahun saat dipublikasikan/dibagikan.
+_export_stamp = datetime.now().strftime("%Y%m%d")
+_csv_name = f"port_classification_{_export_stamp}.csv"
+_xlsx_name = f"port_classification_{_export_stamp}.xlsx"
+
 with col_ex1:
     csv = df_export.to_csv(index=False, encoding="utf-8-sig")
     st.download_button(
         "⬇️ Download CSV",
         data=csv,
-        file_name="port_classification_2025.csv",
+        file_name=_csv_name,
         mime="text/csv",
         width="stretch",
     )
@@ -235,7 +242,7 @@ with col_ex2:
     st.download_button(
         "⬇️ Download Excel",
         data=excel_buf,
-        file_name="port_classification_2025.xlsx",
+        file_name=_xlsx_name,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         width="stretch",
     )
