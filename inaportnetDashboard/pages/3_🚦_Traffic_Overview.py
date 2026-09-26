@@ -114,8 +114,11 @@ if df_raw.empty:
     st.warning("⚠️ Belum ada data. Silakan ambil atau muat data di halaman **📊 Data Collection**.")
     st.stop()
 
-# Terapkan filter
-df = df_raw.copy()
+# Terapkan filter. Boolean masking sudah menghasilkan frame baru, jadi tidak
+# perlu .copy() penuh di awal — yang penting df tidak pernah jadi alias
+# df_raw kalau tidak ada filter aktif (agar mutasi di hilir tidak bocor ke
+# st.session_state["df"]).
+df = df_raw
 if selected_ports:
     df = df[df["port"].isin(selected_ports)]
 if selected_angkutan:

@@ -96,7 +96,14 @@ def _request_with_retry(
             continue
         except requests.exceptions.HTTPError:
             raise
-    raise last_exception  # type: ignore[misc]
+    # Semua retry habis. Kalau penyebabnya 429, last_exception masih None —
+    # dulu kode jatuh ke `raise None` -> TypeError yang menutupi status HTTP
+    # asli. Sekarang laporkan penyebabnya secara eksplisit.
+    if last_exception is not None:
+        raise last_exception
+    raise requests.exceptions.HTTPError(
+        f"HTTP 429 (rate limited) setelah {max_retries} percobaan: {url}"
+    )
 
 
 def _progress_info(idx: int, total: int, start_time: float, errors: int) -> Dict[str, Any]:

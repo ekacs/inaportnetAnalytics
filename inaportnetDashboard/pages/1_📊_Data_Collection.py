@@ -21,6 +21,11 @@ from modules.database      import (
 )
 from modules.theme import render_theme_selector
 
+# Ekstensi yang boleh ditulis permanen ke ./data saat backup upload.
+# Nombre allowlist, bukan blacklist: file di luar daftar ini hanya dibaca
+# (untuk preview/analisis) tapi tidak pernah dipersist ke disk.
+_ALLOWED_UPLOAD_EXT = {".csv", ".gz", ".parquet", ".xlsx", ".xls", ".zip"}
+
 st.set_page_config(page_title="Data Collection · Inaportnet", page_icon="📊", layout="wide")
 render_theme_selector()
 
@@ -417,20 +422,6 @@ with tab_upload:
             st.success(f"✅ File berhasil dibaca: **{len(df_upload):,} baris × {len(df_upload.columns)} kolom** ({file_size_mb} MB)")
 
             # Preview
-
-            # ── Simpan file asli ke ./data untuk backup lokal ──
-            try:
-                _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                _data_dir = os.path.join(_project_root, "data")
-                os.makedirs(_data_dir, exist_ok=True)
-                _save_path = os.path.join(_data_dir, uploaded_file.name)
-                uploaded_file.seek(0)
-                with open(_save_path, "wb") as _f:
-                    _f.write(uploaded_file.getvalue())
-                st.caption(f"💾 File tersimpan: `{_save_path}`")
-            except Exception as _e:
-                st.warning(f"⚠️ Gagal menyimpan file ke folder data: {_e}")
-
             with st.expander("🔍 Preview Data (10 baris pertama)", expanded=True):
                 st.dataframe(df_upload.head(10), width="stretch")
 
@@ -440,6 +431,33 @@ with tab_upload:
                 st.error(validation["message"])
             else:
                 st.info(validation["message"])
+
+                # ── Simpan file asli ke ./data untuk backup lokal ──
+                # Dilakukan SETELAH validasi lulus: nama file disanitasi
+                # (basename) agar tidak bisa menulis keluar folder data/
+                # (path traversal), dan file tidak valid tidak ikut tersimpan.
+                try:
+                    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    _data_dir = os.path.abspath(os.path.join(_project_root, "data"))
+                    os.makedirs(_data_dir, exist_ok=True)
+                    _safe_name = os.path.basename(uploaded_file.name).strip() or "upload"
+                    _ext = os.path.splitext(_safe_name)[1].lower()
+                    if _ext not in _ALLOWED_UPLOAD_EXT:
+                        st.warning(
+                            f"⚠️ Ekstensi {_ext!r} tidak diizinkan untuk disimpan; file tidak ditulis ke folder data."
+                        )
+                    else:
+                        _save_path = os.path.join(_data_dir, _safe_name)
+                        # Pastikan hasil join tetap benar-benar di dalam _data_dir.
+                        # commonpath butuh kedua argumen absolut & satu drive.
+                        if os.path.commonpath([_data_dir, os.path.abspath(_save_path)]) != _data_dir:
+                            raise ValueError("Path hasil simpan berada di luar folder data/.")
+                        uploaded_file.seek(0)
+                        with open(_save_path, "wb") as _f:
+                            _f.write(uploaded_file.getvalue())
+                        st.caption(f"💾 File tersimpan: `{_save_path}`")
+                except Exception as _e:
+                    st.warning(f"⚠️ Gagal menyimpan file ke folder data: {_e}")
                 st.markdown("**💾 Simpan hasil upload ke:**")
                 upload_save_target = st.radio(
                     "Target penyimpanan upload",

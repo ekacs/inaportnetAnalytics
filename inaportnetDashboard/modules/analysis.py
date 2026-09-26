@@ -347,6 +347,7 @@ def _minmax_scale_port(series: pd.Series, low: float = 0.10, high: float = 1.00)
     return low + normalized * (high - low)
 
 
+@st.cache_data(show_spinner=False)
 def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Hitung deteksi anomali 3 lapis dan Composite Fraud Risk Screening Index (CFRSI).
@@ -554,6 +555,7 @@ def compute_fraud_risk_analysis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
     return data, port_summary.sort_values("cfrsi", ascending=False).reset_index(drop=True)
 
 
+@st.cache_data(show_spinner=False)
 def get_fraud_national_summary(df_analyzed: pd.DataFrame, cfrsi_df: pd.DataFrame) -> dict:
     """Statistik ringkasan nasional analisis risiko fraud."""
     if df_analyzed.empty or cfrsi_df.empty:
