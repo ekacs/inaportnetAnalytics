@@ -324,10 +324,32 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         st.markdown("#### 📋 Tabel Ringkasan Risiko Fraud per Pelabuhan")
 
         # Filter Risk Tier
+        #
+        # CATATAN METODOLOGI: kategori risiko dihitung dengan pendekatan
+        # KUINTIL (pd.qcut) — Hitung posisi persentil setiap pelabuhan lalu
+        # bagi lima kelompok sama besar. Pendekatan "fixed scale" (cut di
+        # nilai absolut) sudah dihapus; kolom risk_tier_fixed sengaja
+        # dipertahankan sebagai alias agar kode hilir tidak pecah, isinya
+        # sama persis dengan risk_tier_percentile.
+        #
+        # Konsekuensi yang perlu diketahui pembaca: karena kuintil membagi
+        # sampel jadi lima bagian sama besar, "Sangat Tinggi" di sini
+        # berarti 20% pelabuhan dengan skor tertinggi — bukan ambang absolut.
+        # Jumlah pelabuhan di tiap kategori ≈ sama, terlepas dari sebaran
+        # skor. Kategori ini hanya bisa dibandingkan antar pelabuhan dalam
+        # satu kali analisis, tidak antar periode atau antar dataset.
         tier_filter = st.multiselect(
-            "Filter Kategori Risiko (Fixed Scale):",
+            "Filter Kategori Risiko (Kuintil / Percentile):",
             options=["Sangat Tinggi", "Tinggi", "Sedang", "Rendah", "Sangat Rendah"],
             default=["Sangat Tinggi", "Tinggi", "Sedang", "Rendah", "Sangat Rendah"],
+            key="cfrsi_tier_filter",
+        )
+        st.caption(
+            "Kategori ditentukan dari **posisi persentil** (kuintil) skor CFRSI "
+            "antar pelabuhan — bukan dari ambang absolut. Karena itu "
+            "setiap kategori berisi sekitar 20% pelabuhan, dan label "
+            "\"Tinggi\" berarti *relatif terhadap sampel saat ini*, bukan "
+            "nilai absolut yang bisa dibandingkan antar periode."
         )
 
         filtered_cfrsi = cfrsi_df[
