@@ -68,31 +68,31 @@ inaportnetAnalytics/
 │   │   └── secrets.toml                  # Kredensial Supabase (opsional, bisa via UI)
 │   │
 │   ├── modules/                          # Modul inti backend aplikasi
+│   │   ├── ui.py                         # Single Source of Truth UI (CSS global, sidebar nav, session auto-load, filter)
 │   │   ├── database.py                   # Dual-mode storage (SQLite lokal & Supabase Cloud)
-│   │   ├── scraper.py                    # Scraper anti-deteksi (2-stage: list + detail)
+│   │   ├── scraper.py                    # Scraper anti-deteksi & penanganan rate limit HTTP 429
 │   │   ├── preprocessing.py              # Pipeline datetime parsing, durasi, & time features
-│   │   ├── analysis.py                   # Engine analitik, CPI, Winsorized, dan CFRSI
+│   │   ├── analysis.py                   # Engine analitik, CPI, Winsorized, OLS Z-Score, & CFRSI
 │   │   ├── visualization.py              # Builder grafik interaktif Plotly
+│   │   ├── progress.py                   # Helper progress bar pelacakan chunk data loading
 │   │   └── theme.py                      # Selector tema (Light / Dark mode)
 │   │
 │   ├── pages/                            # Halaman antarmuka Streamlit
-│   │   ├── 1_📊_Data_Collection.py       # Scraping, upload, QC data, scan folder data
-│   │   ├── 2_🗄️_Database_Viewer.py       # (Arsip/Internal inspector database)
+│   │   ├── 1_📊_Data_Collection.py       # Scraping, upload file (anti-traversal), QC data
+│   │   ├── 2_🗄️_Database_Viewer.py       # Penjelajah tabel database SQLite lokal & ekspor
 │   │   ├── 3_🚦_Traffic_Overview.py      # Volume nasional, share, dan tren multi-dimensi
 │   │   ├── 4_📋_Service_Performance.py   # Kepatuhan SLA, histogram respons, top bottleneck
 │   │   ├── 5_🗺️_Port_Classification.py   # Matriks 4-kuadran, 4 sub-indeks CPI, pemeringkatan
-│   │   └── 6_🛡️_Fraud_Risk_Screening.py  # Model CFRSI, deteksi anomali 3 lapis, ekspor audit
+│   │   └── 6_🛡️_Fraud_Risk_Screening.py  # Model CFRSI 3 lapis, deteksi anomali, audit export
 │   │
 │   └── data/                             # Penyimpanan data lokal dashboard
-│       ├── inaportnet_local.db           # Basis data SQLite lokal (terintegrasi otomatis)
+│       ├── inaportnet_local.db           # Basis data SQLite lokal (734.622 transaksi, terintegrasi)
 │       ├── df_redflag_ml.parquet         # Dataset teranotasi Red Flag & hasil komputasi ML
-│       └── port_code.xlsx                # Salinan referensi kode pelabuhan
+│       └── port_code.xlsx                # Salinan referensi kode pelabuhan se-Indonesia
 │
 ├── workflow.md                           # Dokumentasi teknis alur arsitektur data & Mermaid
 └── README.md                             # Dokumentasi utama proyek
 ```
-
-
 
 ---
 
@@ -100,11 +100,10 @@ inaportnetAnalytics/
 
 Dashboard ini mengimplementasikan model riset yang telah dipublikasikan pada:
 
-> **"Toward Data-Driven Anti-Fraud Governance: Anomaly Detection and Composite Fraud Risk Scoring for Port-Level Oversight in Digital Maritime Services"**
+> **"Toward Data-Driven Anti-Fraud Governance: Anomaly Detection and Composite Fraud Risk Scoring for Port-Level Oversight in Digital Maritime Services"**  
 > *Rifki Wijaya & Eka C. Setyawan (2026)*
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
 │               COMPOSITE FRAUD RISK SCREENING INDEX (CFRSI)                      │
 ├───────────────────────┬─────────────────────────┬───────────────────────────────┤
 │   1. RULE-BASED       │   2. STATISTICAL        │   3. MACHINE LEARNING         │
@@ -113,18 +112,19 @@ Dashboard ini mengimplementasikan model riset yang telah dipublikasikan pada:
 │  • Quick Approval     │  • Regresi OLS Waktu vs │  • Unsupervised               │
 │    (< 10 detik)       │    Volume, GT, Hari, Jam│    Isolation Forest           │
 │  • Long Duration      │  • Modified Z-Score     │  • 100 Trees, 256 Samples     │
-│    (> 8 jam)          │    Residual (|Z| ≥ 3.5) │  • 7% Contamination Target    │
-│  • Low Oversight      │  • Deteksi persetujuan  │  • Deteksi anomali            │
-│    (00.00 - 04.00)    │    abnormal ekstrem     │    multidimensi non-linear    │
-│  • GT Manipulation    │                         │                               │
-│  • Same Vessel < 2 jam│                         │                               │
+│    (> 8 jam)          │    Residual (|Z| ≥ 3.5) │  • 5% Contamination Target    │
+│  • Low Oversight      │  • Deteksi deviasi      │  • SSOT Hyperparameter        │
+│    (00.00 - 04.00)    │    ekstrem dua sisi     │    (Bebas Parameter Drift)    │
+│  • GT Manipulation    │    (Iglewicz & Hoaglin) │  • Deteksi anomali            │
+│  • Same Vessel < 2 jam│                         │    multidimensi non-linear    │
 └───────────────────────┴─────────────────────────┴───────────────────────────────┘
                                        │
                                        ▼
-             Normalisasi Winsorized Min-Max [0.10, 1.00] & Equal Weighting
+              Normalisasi Min-Max [0.10, 1.00] & Equal Weighting (1/3)
                                        │
                                        ▼
-       5-Tier Ordinal Risk Classification: Sangat Rendah ──► Sangat Tinggi
+       5-Tier Kuintil Dinamis (pd.qcut): Sangat Rendah ──► Sangat Tinggi
+             (Membagi merata ~20% populasi pelabuhan per kategori risiko)
                                        │
                                        ▼
                Implementasi 4 Pilar Strategi Anti-Fraud (OJK / Kemenhub)
@@ -132,7 +132,7 @@ Dashboard ini mengimplementasikan model riset yang telah dipublikasikan pada:
 
 ### 5 Aturan Operasional Red Flag (Dasar Regulasi)
 
-1. **Quick Approval (< 10 detik):** Berdasarkan *PM 93/2013*, petugas wajib memverifikasi kelaiklautan dan kelengkapan dokumen. Persetujuan dalam hitungan detik mengindikasikan risiko *rubber-stamping* tanpa pemeriksaan substantif.
+1. **Quick Approval (< 10 detik):** Berdasarkan *PM 93/2013*, petugas wajib memverifikasi kelaiklautan dan kelengkapan dokumen. Persetujuan kilat memicu risiko *rubber-stamping* tanpa pemeriksaan substantif.
 2. **Long Duration (> 8 jam):** Persetujuan yang melampaui jam kerja normal memicu risiko hambatan birokrasi sengaja atau potensi permintaan imbalan (*rent-seeking*).
 3. **Low Oversight (00.00 – 04.00):** Pengajuan dan persetujuan di dini hari dengan supervisi minim rentan digunakan untuk menghindari pemantauan berjenjang.
 4. **GT Manipulation:** Anomali deviasi tonase kotor (*Gross Tonnage*) kapal berisiko mengindikasikan upaya pengecilan ukuran kapal guna menurunkan tarif PNBP labuh/tambat.
@@ -142,25 +142,26 @@ Dashboard ini mengimplementasikan model riset yang telah dipublikasikan pada:
 
 ## ✨ Fitur Utama Dashboard (v3.0)
 
-### 1. Ingestion Data & Quality Control (`1_📊_Data_Collection.py`)
+### 1. Ingestion Data, Proteksi Keamanan & QC (`1_📊_Data_Collection.py`)
 
 - **2-Stage Web Scraping**: Mengambil daftar transaksi PKK per pelabuhan/jenis angkutan, dilanjutkan penarikan rincian stempel waktu *submission* dan *response*.
-- **Anti-Deteksi**: Rotasi User-Agent, jeda waktu acak (0.8–3.0 detik), mekanisme *exponential backoff retry*, serta persistensi sesi cookie.
+- **Resilient Scraper**: Rotasi User-Agent, jeda waktu acak (0.8–3.0 detik), penanganan eksplisit limit HTTP 429 dengan *exponential backoff retry*.
 - **Kendali Scraping Interaktif**: Tombol **Jeda (Pause)**, **Lanjut (Resume)**, dan **Hentikan (Stop)** lengkap dengan indikator waktu berjalan, estimasi ETA, dan penghitung galat.
-- **Penyimpanan Otomatis ke `./data/`**: Setiap file yang diunggah (CSV/Excel/Parquet) secara otomatis dicadangkan sebagai file fisik di folder `./data/` untuk keperluan jejak audit (*audit trail*).
-- **Pemindai Berkas Lokal**: Menampilkan inventaris file di folder `./data/` lengkap dengan ukuran dan waktu modifikasi terakhir.
+- **Proteksi Keamanan Unggah Berkas (Security Hardening)**:
+  - Sanitasi nama berkas anti-*Path Traversal* (`os.path.basename` dan verifikasi `commonpath`).
+  - *Strict Extension Allowlist* (hanya berkas `.csv`, `.xlsx`, dan `.parquet` yang diizinkan).
+  - Penulisan berkas fisik ke disk `./data/` ditunda hingga berkas dinyatakan valid oleh pemeriksaan QC.
 - **Data Quality Control (QC) Inspector**:
   - Deteksi transaksi galat (stempel waktu tidak valid atau durasi negatif).
   - Deteksi data *null* pada kolom-kolom kritis (`submission`, `response`, `port_code`, `pkk_number`, `vessel_name`).
-  - Deteksi dan penyaringan nomor PKK duplikat.
-  - Tombol inspeksi tabel dan pengunduhan file CSV untuk data error, null, atau duplikat.
+  - Deteksi dan penyaringan nomor PKK duplikat dengan fitur inspeksi dan ekspor CSV.
 
 ### 2. Analisis Lalu Lintas Kapal (`3_🚦_Traffic_Overview.py`)
 
 - **KPI Nasional**: Volume agregat PKK, jumlah pelabuhan aktif, rata-rata transaksi, bulan puncak (*peak month*), hari tersibuk, dan jam tersibuk.
 - **Volume Share**: Visualisasi grafik donat persentase kontribusi muatan kapal antar pelabuhan.
 - **Tren Multi-Dimensi**: Pola transaksi berbasis Kuartal (Q1–Q4), Bulan (Jan–Des), Hari dalam seminggu, dan Jam harian (dengan penanda zona jam operasional 08.00–17.00).
-- **Filter Fleksibel**: Pemilahan data per pelabuhan spesifik atau agregat nasional.
+- **Filter Fleksibel Terpadu**: Pemilahan data per pelabuhan spesifik atau agregat nasional via [modules/ui.py](inaportnetDashboard/modules/ui.py).
 
 ### 3. Evaluasi Kinerja Layanan & SLA (`4_📋_Service_Performance.py`)
 
@@ -179,107 +180,134 @@ Dashboard ini mengimplementasikan model riset yang telah dipublikasikan pada:
 
 ### 5. Deteksi Anomali & EWS Fraud (`6_🛡️_Fraud_Risk_Screening.py`)
 
+- **High-Performance Caching**: Komputasi berat Isolation Forest dan OLS Residual dilindungi `@st.cache_data` agar respon filter tetap cepat tanpa komputasi ulang.
 - **Tampilan Metrik Utama**: Total PKK dievaluasi, % Red Flag, % Outlier Statistik, % Anomali ML, dan jumlah pelabuhan berkategori risiko tinggi.
 - **Top-N CFRSI Ranking**: Visualisasi bar chart pelabuhan paling berisiko beserta perbandingan 3 sub-indeks penyusunnya.
-- **Filter Kategori Risiko**: Penyaringan tabel interaktif berdasarkan 5 tingkat risiko (*Sangat Rendah* hingga *Sangat Tinggi*).
+- **Filter Kategori Risiko Kuintil**: Penyaringan tabel interaktif berdasarkan 5 tingkat risiko kuintil (*Sangat Rendah* hingga *Sangat Tinggi*).
 - **Unduh Data Hasil Audit**: Tombol langsung untuk mengekspor data transaksi outlier statistik dan anomali multidimensi Machine Learning ke format CSV.
 - **Simulasi / Demo Cepat**: Tombol *Generate Benchmark Dataset (257 Pelabuhan)* untuk mencoba fitur analisis tanpa memerlukan data riil awal.
 - **Integrasi 4 Pilar Anti-Fraud**: Pedoman tata kelola operasional (Pencegahan, Deteksi, Investigasi, Evaluasi) sesuai rekomendasi OJK 2024 / Ditjen Hubla.
 
 ### 6. Arsitektur Basis Data Ganda (Dual-Mode)
 
-- **SQLite Lokal (Default)**: Otomatis diinisialisasi pada `./data/inaportnet_local.db` tanpa setup tambahan.
+- **SQLite Lokal (Default)**: Otomatis diinisialisasi pada `./data/inaportnet_local.db` (berisi 734.622 transaksi historis) tanpa setup tambahan.
 - **Supabase Cloud (PostgreSQL)**: Sinkronisasi data terpusat ke cloud dengan konfigurasi instan via GUI modal dashboard atau `secrets.toml`.
 - **Ekspor Format Lengkap**: Dukungan unduh basis data ke CSV, Excel multi-sheet, JSON, dan SQL Dump.
 
 ---
 
-## 💻 Panduan Instalasi & Persiapan Lingkungan
+## 💻 Panduan Instalasi & Menjalankan Dashboard
 
 ### Prasyarat Sistem
-
-- **Sistem Operasi**: Windows 10/11, macOS, atau Linux
-- **Python**: Versi `3.10`, `3.11`, `3.12`, atau yang lebih baru
-- **Git**: Untuk kloning repositori
+* **Sistem Operasi**: Windows 10/11, macOS, atau Linux
+* **Python**: Versi `3.10`, `3.11`, `3.12`, atau `3.13+`
+* **Git**: Terpasang di sistem operasi Anda
 
 ---
 
-### Langkah 1: Kloning Repositori
+### ⚡ Cara Cepat (Quick Start — 3 Langkah)
 
-Buka terminal (PowerShell, Command Prompt, atau Bash), lalu jalankan:
+Bagi Anda yang sudah terbiasa dengan terminal Python:
 
+```bash
+# 1. Kloning repositori dan masuk ke direktori dashboard
+git clone https://github.com/ekacs/inaportnetAnalytics.git
+cd inaportnetAnalytics/inaportnetDashboard
+
+# 2. Buat virtual environment & pasang dependensi
+python -m venv venv
+# (Aktifkan venv sesuai sistem operasi Anda, lihat tabel di bawah)
+pip install -r requirements.txt
+
+# 3. Jalankan aplikasi dashboard
+streamlit run app.py
+```
+
+---
+
+### 📘 Panduan Langkah Demi Langkah Lengkap
+
+#### Langkah 1: Kloning Repositori
+Buka terminal (PowerShell, Command Prompt, atau Terminal Linux/macOS), lalu jalankan:
 ```bash
 git clone https://github.com/ekacs/inaportnetAnalytics.git
-cd inaportnetAnalytics
+cd inaportnetAnalytics\inaportnetDashboard
 ```
 
----
-
-### Langkah 2: Buat dan Aktifkan Virtual Environment
-
-Sangat disarankan menggunakan virtual environment agar dependensi proyek terisolasi:
-
-#### Di Windows (PowerShell):
-
-```powershell
-python -m venv inaportnetDashboard\venv
-.\inaportnetDashboard\venv\Scripts\Activate.ps1
-```
-
-> [!TIP]
-> Jika muncul pesan *execution policy error* di PowerShell, jalankan perintah ini sekali:
->
-> ```powershell
-> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-> ```
-
-#### Di Windows (Command Prompt `cmd`):
-
-```cmd
-python -m venv inaportnetDashboard\venv
-inaportnetDashboard\venv\Scripts\activate.bat
-```
-
-#### Di Linux / macOS (Bash / Zsh):
-
+#### Langkah 2: Buat Virtual Environment
+Buat virtual environment terisolasi di dalam direktori `inaportnetDashboard`:
 ```bash
-python3 -m venv inaportnetDashboard/venv
-source inaportnetDashboard/venv/bin/activate
+python -m venv venv
 ```
 
----
+#### Langkah 3: Aktifkan Virtual Environment
+Pilih perintah yang sesuai dengan terminal yang Anda gunakan:
 
-### Langkah 3: Pasang Pustaka Dependensi
+| Sistem Operasi / Shell | Perintah Aktivasi | Catatan Tambahan |
+| :--- | :--- | :--- |
+| **Windows PowerShell** | `.\venv\Scripts\Activate.ps1` | Jika diblokir oleh sistem, lihat solusi kendala di bawah |
+| **Windows Command Prompt (`cmd`)** | `venv\Scripts\activate.bat` | Langsung aktif di CMD biasa |
+| **macOS / Linux (Bash/Zsh)** | `source venv/bin/activate` | Menggunakan shell Unix standar |
 
-Pastikan virtual environment telah aktif, lalu pasang paket dependensi dari file `requirements.txt`:
+> **Indikator Berhasil:** Pada sisi paling kiri prompt terminal Anda akan muncul tanda `(venv)`.
 
+#### Langkah 4: Pasang Pustaka Dependensi
+Jalankan perintah berikut untuk mengunduh seluruh library yang dibutuhkan:
 ```bash
-cd inaportnetDashboard
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-> [!NOTE]
-> Dependensi utama yang dipasang mencakup: `streamlit`, `pandas`, `plotly`, `requests`, `supabase`, `openpyxl`, `lxml`, `scipy`, `numpy`, `scikit-learn`, `statsmodels`, dan `python-dotenv`.
+> **Verifikasi Cepat:** Untuk memastikan seluruh paket berhasil terpasang sempurna, jalankan perintah satu baris ini:
+> ```bash
+> python -c "import streamlit, pandas, sklearn, statsmodels, plotly; print('✅ SEMUA DEPENDENSI SIAP DIGUNAKAN!')"
+> ```
 
 ---
 
-## 🚀 Panduan Penggunaan Dashboard (Langkah demi Langkah)
+## 🚀 Menjalankan Aplikasi Dashboard
 
-### 1. Menjalankan Server Dashboard
+Setelah dependensi terpasang, jalankan server Streamlit:
 
-Pastikan terminal berada di direktori `inaportnetDashboard`, lalu ketik:
-
-```powershell
-python -m streamlit run app.py
+```bash
+streamlit run app.py
 ```
 
-Setelah perintah dijalankan, browser Anda akan otomatis membuka alamat:
+> [!TIP]
+> **Khusus Pengguna Windows:** Anda juga dapat menjalankan aplikasi langsung tanpa perlu mengaktifkan virtual environment terlebih dahulu dengan perintah:
+> ```powershell
+> .\venv\Scripts\streamlit.exe run app.py
+> ```
+
+Setelah perintah dijalankan, browser Anda akan otomatis terbuka ke alamat:
 🌐 **`http://localhost:8501`**
+
+> [!NOTE]
+> Database SQLite bawaan (`data/inaportnet_local.db`) telah berisi **734.622 data transaksi riil operasional pelabuhan Indonesia**. Anda **tidak perlu** mengimpor atau menginstal database server tambahan secara manual dan dapat langsung menjelajahi seluruh modul analisis.
 
 ---
 
-### 2. Alur Kerja Penggunaan Aplikasi
+### ❓ Solusi Kendala Umum (Troubleshooting)
+
+1. **PowerShell Script Execution Policy Error:**  
+   Jika saat aktivasi virtual environment muncul pesan *“cannot be loaded because running scripts is disabled on this system”*, jalankan perintah ini satu kali di PowerShell:
+   ```powershell
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   ```
+   Lalu ulangi perintah aktivasi `.\venv\Scripts\Activate.ps1`.
+
+2. **Port 8501 Sedang Digunakan (Port Conflict):**  
+   Jika port 8501 sudah digunakan oleh proses lain, arahkan ke port alternatif (misalnya 8502):
+   ```bash
+   streamlit run app.py --server.port 8502
+   ```
+
+3. **Komputasi Model CFRSI Pertama Kali:**  
+   Pada pemanggilan pertama fitur *Fraud Risk Screening*, sistem melakukan kalkulasi multidimensi (Isolation Forest & regresi OLS) terhadap ratusan ribu baris data sehingga membutuhkan waktu pemrosesan $\approx 15-20$ detik. Hasil ini selanjutnya disimpan otomatis oleh memori cache (`@st.cache_data`) sehingga pemfilteran dan navigasi berikutnya berjalan secara instan.
+
+---
+
+## 🧭 Alur Kerja Penggunaan Aplikasi
 
 ```
   [ Beranda ] ──► Status Sistem & Ringkasan Eksekutif
