@@ -74,3 +74,9 @@ Thumbs.db
 *.db-wal
 test_upload.csv
 .playwright-mcp/
+
+# Dataset hasil ekspor analisis: berukuran ratusan MB, exceed limit GitHub
+# (100 MB/file) dan tidak perlu ikut versioning. port_code.xlsx tetap
+# di-commit karena itu data referensi yang wajib ada di app.
+data/dfjoin.csv
+data/df_redflag_ml.xlsx

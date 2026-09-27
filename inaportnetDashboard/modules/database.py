@@ -278,6 +278,21 @@ def _to_sqlite_value(value):
 # Helper Penyelarasan DataFrame ke Skema Database
 # ──────────────────────────────────────────────────────────────
 
+def _to_datetime_str(series: pd.Series, fmt: str) -> pd.Series:
+    """
+    Ubah kolom menjadi string bertanggal dengan format target.
+
+    Format diketahui pasti (data influx sudah dinormalkan ke %Y-%m-%d %H:%M:%S),
+    jadi format itu dicoba lebih dulu. Tanpa ini pandas menebak format per
+    elemen dengan dateutil, yang jauh lebih lambat dan memunculkan warning
+    "Could not infer format".values yang tak sesuai format tetap jadi NaT.
+    """
+    try:
+        return pd.to_datetime(series, format=fmt, errors="coerce").dt.strftime(fmt)
+    except (ValueError, TypeError):
+        return pd.to_datetime(series, errors="coerce").dt.strftime(fmt)
+
+
 def prepare_df_for_db(df: pd.DataFrame) -> pd.DataFrame:
     """Menyelaraskan nama kolom dan tipe data sesuai skema pkk_records secara cepat & aman."""
     if df.empty:
@@ -313,15 +328,9 @@ def prepare_df_for_db(df: pd.DataFrame) -> pd.DataFrame:
 
     # Sanitasi vektorisasi cepat untuk kolom datetime/date
     for c in ("submission", "response", "simpadu", "gmt"):
-        try:
-            df[c] = pd.to_datetime(df[c], errors="coerce").dt.strftime(_DATETIME_FMT)
-        except Exception:
-            pass
+        df[c] = _to_datetime_str(df[c], _DATETIME_FMT)
 
-    try:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime(_DATE_FMT)
-    except Exception:
-        pass
+    df["date"] = _to_datetime_str(df["date"], _DATE_FMT)
 
     for c in ("approval_hours", "approval_minutes"):
         df[c] = pd.to_numeric(df[c], errors="coerce")

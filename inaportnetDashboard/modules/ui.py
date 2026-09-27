@@ -118,6 +118,34 @@ def render_sidebar_nav(footer: str = "") -> None:
             st.markdown(footer)
 
 
+def arrow_safe_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Renses DataFrame supaya pasti bisa diserialisasi Arrow oleh st.dataframe.
+
+    Kolom ``object`` yang isinya campuran tipe (mis. sebagian int, sebagian
+    str) tidak punya satu representasi Arrow yang valid, sehingga
+    st.dataframe melempar ArrowTypeError. Mengubah kolom seperti itu menjadi
+    string menutup kelas bug ini secara umum, bukan hanya untuk kasus kolom
+    tanpa header.
+    """
+    for col in df.columns:
+        if df[col].dtype != object:
+            continue
+        non_null = df[col].dropna()
+        if non_null.empty:
+            continue
+        if not all(isinstance(v, (str, bytes)) for v in non_null):
+            df[col] = df[col].map(
+                lambda v: v if isinstance(v, (str, bytes)) or pd.isna(v) else str(v)
+            )
+    return df
+
+
+def show_df(df: pd.DataFrame, **kwargs) -> None:
+    """st.dataframe dengan sanitasi Arrow otomatis."""
+    st.dataframe(arrow_safe_df(df), **kwargs)
+
+
 def kpi_card(value: str, label: str) -> None:
     """Kartu KPI dengan gradient brand (HTML statis, tanpa input pengguna)."""
     st.markdown(

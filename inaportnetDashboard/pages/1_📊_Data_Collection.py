@@ -11,7 +11,9 @@ import pandas as pd
 import io
 import zipfile
 from modules.scraper      import run_full_scraping, load_port_reference
-from modules.preprocessing import preprocess, validate_uploaded_file
+from modules.preprocessing import (
+    preprocess, validate_uploaded_file, drop_unnamed_columns,
+)
 from modules.progress import make_fetch_progress, make_insert_progress, timed_status, fmt_dur
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
@@ -20,7 +22,7 @@ from modules.database      import (
 
 )
 from modules.theme import render_theme_selector
-from modules.ui import page_css, render_sidebar_nav
+from modules.ui import page_css, render_sidebar_nav, show_df
 
 # Ekstensi yang boleh ditulis permanen ke ./data saat backup upload.
 # Nombre allowlist, bukan blacklist: file di luar daftar ini hanya dibaca
@@ -408,6 +410,10 @@ with tab_upload:
                 df_upload = pd.read_excel(uploaded_file)
                 parse_progress.progress(100)
 
+            # Kolom tanpa header (hasil ekspor Excel) dibuang sebelum apa pun:
+            # isinya tidak dipakai, tapi merusak serialisasi Arrow di st.dataframe.
+            df_upload = drop_unnamed_columns(df_upload)
+
             parse_status.empty()
             parse_progress.empty()
 
@@ -415,7 +421,7 @@ with tab_upload:
 
             # Preview
             with st.expander("🔍 Preview Data (10 baris pertama)", expanded=True):
-                st.dataframe(df_upload.head(10), width="stretch")
+                show_df(df_upload.head(10), width="stretch")
 
             # Validasi
             validation = validate_uploaded_file(df_upload)
@@ -628,7 +634,7 @@ with tab_db:
                             _dstatus.warning("⚠️ Tidak ada data di Supabase.")
                         else:
                             _ddone(len(df_all), "Supabase")
-                            st.dataframe(df_all.head(5), width="stretch")
+                            show_df(df_all.head(5), width="stretch")
                             if "year" in df_all.columns:
                                 st.write("Nilai 'year' yang ada:", df_all["year"].unique().tolist())
                             if "angkutan" in df_all.columns:
@@ -643,7 +649,7 @@ with tab_db:
                 f" dalam **{_fmt_dur(_dur)}**."
             )
             with st.expander("🔍 Preview Data"):
-                st.dataframe(df_db.head(20), width="stretch")
+                show_df(df_db.head(20), width="stretch")
             # Banner navigasi setelah load dari DB
             st.markdown("""
 <div style="background:linear-gradient(90deg,#1a4a7a,#2471a3);color:white;padding:1rem 1.2rem;
@@ -734,7 +740,7 @@ with tab_db:
             if "_df_errors" in st.session_state and not st.session_state["_df_errors"].empty:
                 _df_errors = st.session_state["_df_errors"]
                 st.warning(f"⚠️ **{len(_df_errors):,} transaksi error** ditemukan.")
-                st.dataframe(_df_errors.head(100), width="stretch", hide_index=True)
+                show_df(_df_errors.head(100), width="stretch", hide_index=True)
                 _err_csv = _df_errors.to_csv(index=False).encode("utf-8")
                 st.download_button("💾 Simpan Transaksi Error (.csv)", _err_csv,
                                    file_name="transaksi_error.csv", mime="text/csv",
@@ -752,7 +758,7 @@ with tab_db:
             if "_df_nulls" in st.session_state and not st.session_state["_df_nulls"].empty:
                 _df_nulls = st.session_state["_df_nulls"]
                 st.warning(f"⚠️ **{len(_df_nulls):,} transaksi dengan nilai null** ditemukan.")
-                st.dataframe(_df_nulls.head(100), width="stretch", hide_index=True)
+                show_df(_df_nulls.head(100), width="stretch", hide_index=True)
                 _null_csv = _df_nulls.to_csv(index=False).encode("utf-8")
                 st.download_button("💾 Simpan Transaksi Null (.csv)", _null_csv,
                                    file_name="transaksi_null.csv", mime="text/csv",
@@ -771,7 +777,7 @@ with tab_db:
             if "_df_dups" in st.session_state and not st.session_state["_df_dups"].empty:
                 _df_dups = st.session_state["_df_dups"]
                 st.warning(f"🔄 **{len(_df_dups):,} transaksi duplikat** ditemukan.")
-                st.dataframe(_df_dups.head(100), width="stretch", hide_index=True)
+                show_df(_df_dups.head(100), width="stretch", hide_index=True)
                 _dup_csv = _df_dups.to_csv(index=False).encode("utf-8")
                 st.download_button("💾 Simpan Duplikat (.csv)", _dup_csv,
                                    file_name="transaksi_duplikat.csv", mime="text/csv",
@@ -883,7 +889,7 @@ with tab_export:
 
         # Preview kolom
         st.markdown("#### 🔍 Preview Data")
-        st.dataframe(df_current.head(20), width="stretch")
+        show_df(df_current.head(20), width="stretch")
 
         col_stat1, col_stat2, col_stat3 = st.columns(3)
         with col_stat1:
