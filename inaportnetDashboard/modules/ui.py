@@ -87,7 +87,8 @@ html, body, [class*="css"] {{ font-family: {FONT_STACK}; }}
 .legend-box  {{ background:#f8fafc; border:1px solid {BORDER_LIGHT};
                 border-radius:10px; padding:1rem; font-size:0.88rem; }}
 
-footer{{visibility:hidden;}} #MainMenu{{visibility:hidden;}}
+footer{{visibility:hidden;}}
+.stDeployButton{{display:none !important;}}
 [data-testid="stSidebarNav"]{{display:none !important;}}
 {extra}
 </style>
