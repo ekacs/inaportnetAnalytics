@@ -8,4 +8,14 @@ font = "sans serif"
 
 [server]
 maxUploadSize = 500
+enableWebsocketCompression = true
+fileWatcherType = "none"
 
+[runner]
+fastReruns = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showSidebarNavigation = false

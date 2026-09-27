@@ -11,5 +11,6 @@
   ],
   "files.watcherExclude": {
     "**/venv/**": true
-  }
+  },
+  "specstory.cloudSync.enabled": "always"
 }

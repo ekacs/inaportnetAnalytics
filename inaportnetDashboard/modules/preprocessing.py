@@ -5,8 +5,36 @@ ekstraksi komponen waktu, dan filtering.
 Refactoring dari 01_data_preprocessing.py.
 """
 
+import re
+
 import pandas as pd
 from datetime import timedelta
+
+# Engine "pyarrow" menamai kolom header kosong sebagai "", engine C dan
+# openpyxl sebagai "Unnamed: N".
+_UNNAMED_COL_RE = re.compile(r"^Unnamed:\s*\d+$", re.IGNORECASE)
+
+
+def is_unnamed_col(name) -> bool:
+    """True bila ``name`` adalah kolom tanpa header asli pada file sumber."""
+    if not isinstance(name, str):
+        return False
+    return name.strip() == "" or bool(_UNNAMED_COL_RE.fullmatch(name.strip()))
+
+
+def drop_unnamed_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Buang kolom tanpa nama header (``Unnamed: N`` / header kosong).
+
+    Kolom semacam ini muncul saat CSV hasil ekspor Excel punya spasi atau
+    pemisah sisa di baris header. Isinya tidak pernah dipakai analisis, tapi
+    kalau dibiarkan apa adanya, ``st.dataframe`` gagal karena tipe ``object``
+    campuran int/string tidak bisa diserialisasi ke Arrow.
+    """
+    unnamed = [c for c in df.columns if is_unnamed_col(c)]
+    if not unnamed:
+        return df
+    return df.drop(columns=unnamed)
 
 
 def preprocess(df: pd.DataFrame) -> pd.DataFrame:

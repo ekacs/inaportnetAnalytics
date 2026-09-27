@@ -1,0 +1,597 @@
+"""
+pages/6_🛡️_Fraud_Risk_Screening.py
+======================================
+Halaman Analisis Composite Fraud Risk Screening Index (CFRSI)
+Berdasarkan paper riset:
+"Toward Data-Driven Anti-Fraud Governance: Anomaly Detection and
+Composite Risk Scoring for Port-Level Oversight in Digital Maritime Services"
+(Wijaya & Setyawan, 2026)
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+from modules.database import is_connected, get_db_status_info
+from modules.progress import timed_status
+from modules.theme import render_theme_selector
+from modules.scraper import load_port_reference
+from modules.analysis import (
+    compute_fraud_risk_analysis,
+    get_fraud_national_summary,
+    IF_CONTAMINATION,
+    IF_MAX_SAMPLES,
+    IF_N_ESTIMATORS,
+)
+from modules.visualization import (
+    plot_volume_vs_red_flag_percentage,
+    plot_red_flag_breakdown,
+    plot_cfrsi_port_ranking,
+    plot_subindices_breakdown,
+    plot_risk_category_distribution,
+)
+from modules.ui import page_css, render_sidebar_nav
+
+# ──────────────────────────────────────────────────────────────
+# Page Config
+# ──────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Fraud Risk Screening — Inaportnet Analytics",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+render_theme_selector()
+
+# CSS global + gaya khas halaman ini (hero & metric card CFRSI, sidebar gelap).
+# CSS global passing lewat modules.ui supaya font/KPI/footer tidak lagi
+# diulang tangan di tiap halaman.
+page_css(
+    extra="""
+    .hero-fraud {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #780206 100%);
+        border-radius: 16px;
+        padding: 2rem 2rem 1.6rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+    .hero-fraud h1 { font-size: 2.2rem; font-weight: 700; margin: 0; }
+    .hero-fraud p  { font-size: 1rem; margin: 0.4rem 0 0; opacity: 0.9; }
+
+    .metric-card {
+        background: white;
+        border: 1px solid #e8ecf0;
+        border-radius: 12px;
+        padding: 1.1rem 0.8rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .metric-card .val   { font-size: 1.8rem; font-weight: 700; color: #780206; }
+    .metric-card .label { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
+    .metric-card .sub   { font-size: 0.75rem; color: #adb5bd; margin-top: 1px; }
+
+    [data-testid="stSidebar"] { background: #0f2d52; }
+    [data-testid="stSidebar"] * { color: white !important; }
+"""
+)
+
+# ──────────────────────────────────────────────────────────────
+# Sidebar
+# ──────────────────────────────────────────────────────────────
+# Nav link berasal dari modules.ui (satu sumber kebenaran). Halaman ini tidak
+# memakai filter pelabuhan/angkutan, jadi blok di bawah nav dibuat di sini.
+render_sidebar_nav()
+
+with st.sidebar:
+    st.markdown("**Status Database**")
+    st.success(get_db_status_info()["label"])
+    st.markdown("---")
+    st.markdown("**Metodologi Riset**")
+    st.caption("Paper: Wijaya & Setyawan (2026)")
+    st.caption("Kerangka CFRSI 3-Lapis (Rule, Stat, ML)")
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:0.75rem; opacity:0.5;">v3.0 · 2026 CFRSI Edition</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("**Metodologi Riset**")
+    st.caption("Paper: Wijaya & Setyawan (2026)")
+    st.caption("Kerangka CFRSI 3-Lapis (Rule, Stat, ML)")
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:0.75rem; opacity:0.5;">v3.0 · 2026 CFRSI Edition</p>',
+        unsafe_allow_html=True,
+    )
+
+# ──────────────────────────────────────────────────────────────
+# Hero Header
+# ──────────────────────────────────────────────────────────────
+st.markdown(
+    """
+<div class="hero-fraud">
+    <h1>🛡️ Composite Fraud Risk Screening Index (CFRSI) Model </h1>
+    <p>Sistem EWS Deteksi Anomali & Index Risiko Fraud Lintas Pelabuhan (Wijaya & Setyawan, 2026)</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+# ──────────────────────────────────────────────────────────────
+# Data Session Handling
+# ──────────────────────────────────────────────────────────────
+has_data = "df" in st.session_state and not st.session_state["df"].empty
+if not has_data:
+    try:
+        from modules.database import fetch_pkk_records
+        from modules.preprocessing import preprocess
+        from modules.progress import make_fetch_progress
+
+        _bar, _status, _cb, _t0, _done = make_fetch_progress(st, label="📥 Auto-load")
+        _auto_df = fetch_pkk_records(progress_callback=_cb, chunk_size=50000)
+        if not _auto_df.empty:
+            _status.info(f"⚙️ Preprocessing {len(_auto_df):,} record...")
+            st.session_state["df"] = preprocess(_auto_df)
+            has_data = True
+            _done(len(_auto_df), "database lokal")
+        else:
+            _bar.empty()
+            _status.empty()
+    except Exception:
+        pass
+
+if not has_data:
+    st.warning(
+        "⚠️ **Belum ada data transaksi di sesi.** Anda dapat memuat data dari halaman Data Collection atau mengklik tombol simulasi data 257 pelabuhan di bawah ini untuk melihat demo analisis CFRSI."
+    )
+
+    if st.button("🎲 Generate Benchmark Dataset (257 Pelabuhan)", type="primary"):
+        np.random.seed(42)
+        n_records = 15000
+        ports = [f"IDPRT_{i:03d}" for i in range(1, 258)]
+        # Sertakan beberapa pelabuhan bernama dari paper
+        known_ports = [
+            "Lahewa",
+            "Samarinda",
+            "Pomako",
+            "Sinabang",
+            "Benete",
+            "Labuhan",
+            "Susoh",
+            "Raha",
+            "Banjarmasin",
+            "Benoa",
+            "Balikpapan",
+            "Banten",
+            "Tanjung Priok",
+            "Tanjung Perak",
+        ]
+        for idx, k_port in enumerate(known_ports):
+            ports[idx] = k_port
+
+        sim_df = pd.DataFrame(
+            {
+                "port_code": np.random.choice(ports, n_records),
+                "approval_minutes": np.random.exponential(scale=32, size=n_records),
+                "gt": np.random.randint(500, 35000, size=n_records),
+                "hour": np.random.randint(0, 24, size=n_records),
+                "day": np.random.choice(
+                    [
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                        "Sunday",
+                    ],
+                    size=n_records,
+                ),
+                "vessel_name": [
+                    f"Kapal_{i}" for i in np.random.randint(1, 600, size=n_records)
+                ],
+                "submission_time": pd.date_range(
+                    "2025-01-01", periods=n_records, freq="30min"
+                ),
+            }
+        )
+        sim_df["port"] = sim_df["port_code"]
+        st.session_state["df"] = sim_df
+        st.rerun()
+
+if "df" in st.session_state and not st.session_state["df"].empty:
+
+    _port_ref = load_port_reference("data/port_code.xlsx")
+    port_name_map = (
+        _port_ref.drop_duplicates(subset="KODE")
+        .set_index("KODE")["PELABUHAN"]
+        .to_dict()
+        if not _port_ref.empty
+        else {}
+    )
+
+    # Jalankan Analisis CFRSI & Deteksi Anomali (monolit: Rule + OLS Z-Score + Isolation Forest)
+    df_raw = st.session_state["df"]
+    with timed_status(
+        st,
+        f"🛡️ Menjalankan Engine Deteksi Anomali 3-Lapis ({len(df_raw):,} record: Rule-Based, OLS Z-Score, Isolation Forest) — estimasi ~2-4 dtk",
+        "✅ Evaluasi Deteksi Anomali 3-Lapis selesai",
+    ):
+        df_analyzed, cfrsi_df = compute_fraud_risk_analysis(df_raw)
+
+    summary_stats = get_fraud_national_summary(df_analyzed, cfrsi_df)
+
+    # ──────────────────────────────────────────────────────────────
+    # KPI Metric Cards
+    # ──────────────────────────────────────────────────────────────
+    c1, c2, c3, c4, c5 = st.columns(5)
+    # Scope diambil dari rentang tahun data aktual, bukan literal, agar KPI
+    # tidak salah tahun bila dataset diganti.
+    _scope = "Scope —"
+    for _col in ("submission", "year"):
+        if _col == "year" and _col in df_raw.columns:
+            _ys = pd.to_numeric(df_raw[_col], errors="coerce").dropna()
+        elif _col in df_raw.columns:
+            _ys = pd.to_datetime(df_raw[_col], errors="coerce").dt.year.dropna()
+        else:
+            continue
+        if not _ys.empty:
+            _y0, _y1 = int(_ys.min()), int(_ys.max())
+            _scope = f"Scope {_y0}" if _y0 == _y1 else f"Scope {_y0}–{_y1}"
+            break
+    metrics = [
+        (
+            c1,
+            f"{summary_stats.get('total_pkk', 0):,}",
+            "Total PKK Evaluasi",
+            _scope,
+        ),
+        (
+            c2,
+            f"{summary_stats.get('red_flag_pct', 0):.2f}%",
+            "Transaksi Red Flag",
+            f"{summary_stats.get('red_flag_pkk', 0):,} transaksi",
+        ),
+        (
+            c3,
+            f"{summary_stats.get('stat_pct', 0):.2f}%",
+            "Statistical Outliers",
+            f"{summary_stats.get('stat_pkk', 0):,} transaksi",
+        ),
+        (
+            c4,
+            f"{summary_stats.get('ml_pct', 0):.2f}%",
+            "Isolation Forest",
+            f"{summary_stats.get('ml_pkk', 0):,} transaksi",
+        ),
+        (
+            c5,
+            f"{summary_stats.get('high_risk_ports', 0)}",
+            "Pelabuhan Risiko Tinggi",
+            "Tinggi & Sangat Tinggi",
+        ),
+    ]
+
+    for col, val, label, sub in metrics:
+        with col:
+            st.markdown(
+                f"""
+            <div class="metric-card">
+                <div class="val">{val}</div>
+                <div class="label">{label}</div>
+                <div class="sub">{sub}</div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ──────────────────────────────────────────────────────────────
+    # Interactive Tabs
+    # ──────────────────────────────────────────────────────────────
+    tab1, tab2, tab3 = st.tabs(
+        [
+            "🏆 Composite Risk Index (CFRSI)",
+            "🚨 Rule-Based Red Flags",
+            "📐 Statistical & ML Anomalies",
+            #    "📜 Anti-Fraud Governance & Risk Tiers"
+        ]
+    )
+
+    # ── TAB 1: CFRSI RANKING ──────────────────────────────────────
+    with tab1:
+        st.markdown("### 🏆 Ranking Composite Fraud Risk Screening Index (CFRSI)")
+        st.info(
+            "💡 **Penjelasan CFRSI:** CFRSI mengintegrasikan sub-indeks Rule-Based, Statistical (OLS Z-score), dan Machine Learning (Isolation Forest) dengan normalisasi Min-Max `[0.10 - 1.00]` dan bobot seimbang (equal weighting). Skor yang tinggi menunjukkan sinyal anomali operasional akumulatif (*red flag*)."
+        )
+
+        col_top, col_sub = st.columns([1, 1])
+        with col_top:
+            top_n = st.slider(
+                "Tampilkan Top N Pelabuhan", min_value=5, max_value=30, value=15
+            )
+            st.plotly_chart(
+                plot_cfrsi_port_ranking(cfrsi_df, top_n=top_n), use_container_width=True
+            )
+
+        with col_sub:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.plotly_chart(
+                plot_subindices_breakdown(cfrsi_df, top_n=min(10, top_n)),
+                use_container_width=True,
+            )
+
+        st.markdown("---")
+        st.markdown("#### 📋 Tabel Ringkasan Risiko Fraud per Pelabuhan")
+
+        # Filter Risk Tier
+        #
+        # CATATAN METODOLOGI: kategori risiko dihitung dengan pendekatan
+        # KUINTIL (pd.qcut) — Hitung posisi persentil setiap pelabuhan lalu
+        # bagi lima kelompok sama besar. Pendekatan "fixed scale" (cut di
+        # nilai absolut) sudah dihapus; kolom risk_tier_fixed sengaja
+        # dipertahankan sebagai alias agar kode hilir tidak pecah, isinya
+        # sama persis dengan risk_tier_percentile.
+        #
+        # Konsekuensi yang perlu diketahui pembaca: karena kuintil membagi
+        # sampel jadi lima bagian sama besar, "Sangat Tinggi" di sini
+        # berarti 20% pelabuhan dengan skor tertinggi — bukan ambang absolut.
+        # Jumlah pelabuhan di tiap kategori ≈ sama, terlepas dari sebaran
+        # skor. Kategori ini hanya bisa dibandingkan antar pelabuhan dalam
+        # satu kali analisis, tidak antar periode atau antar dataset.
+        tier_filter = st.multiselect(
+            "Filter Kategori Risiko (Kuintil / Percentile):",
+            options=["Sangat Tinggi", "Tinggi", "Sedang", "Rendah", "Sangat Rendah"],
+            default=["Sangat Tinggi", "Tinggi", "Sedang", "Rendah", "Sangat Rendah"],
+            key="cfrsi_tier_filter",
+        )
+        st.caption(
+            "Kategori ditentukan dari **posisi persentil** (kuintil) skor CFRSI "
+            "antar pelabuhan — bukan dari ambang absolut. Karena itu "
+            "setiap kategori berisi sekitar 20% pelabuhan, dan label "
+            "\"Tinggi\" berarti *relatif terhadap sampel saat ini*, bukan "
+            "nilai absolut yang bisa dibandingkan antar periode."
+        )
+
+        filtered_cfrsi = cfrsi_df[
+            cfrsi_df["risk_tier_fixed"].astype(str).isin(tier_filter)
+        ]
+
+        if port_name_map:
+            filtered_cfrsi = filtered_cfrsi.copy()
+            filtered_cfrsi["Nama Pelabuhan"] = (
+                filtered_cfrsi["port_code"].map(port_name_map).fillna("-")
+            )
+
+        cols_table = [
+            "port_code",
+            "Nama Pelabuhan",
+            "volume",
+            "total_red_flags",
+            "red_flag_pct",
+            "rule_based_index",
+            "statistical_index",
+            "ml_index",
+            "cfrsi",
+            "risk_tier_fixed",
+        ]
+        display_df = filtered_cfrsi[
+            [c for c in cols_table if c in filtered_cfrsi.columns]
+        ].rename(
+            columns={
+                "port_code": "Kode Pelabuhan",
+                "volume": "Volume PKK",
+                "total_red_flags": "Total Red Flags",
+                "red_flag_pct": "Red Flag %",
+                "rule_based_index": "Rule Index",
+                "statistical_index": "Stat Index",
+                "ml_index": "ML Index",
+                "cfrsi": "Skor CFRSI",
+                "risk_tier_fixed": "Tingkat Risiko",
+            }
+        )
+        display_df.index = range(1, len(display_df) + 1)
+        display_df.index.name = "No."
+        st.dataframe(display_df, use_container_width=True, height=350)
+        st.markdown("---")
+        st.markdown(
+            "#### 🏛️ Penerapan 4 Pilar Strategi Anti-Fraud (OJK 2024 / Kemenhub)"
+        )
+
+        g1, g2, g3, g4 = st.columns(4)
+        with g1:
+            st.markdown(
+                """
+            <div style="background:#eaf2f8; padding:1rem; border-radius:10px; border-left:4px solid #2980b9;">
+                <h4 style="color:#1a4a7a; margin-top:0;">1. Pencegahan</h4>
+                <p style="font-size:0.85rem;">Standardisasi verifikasi dokumen digital & pembatasan akses sistem persetujuan otomatis di luar jam kerja.</p>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        with g2:
+            st.markdown(
+                """
+            <div style="background:#fef9e7; padding:1rem; border-radius:10px; border-left:4px solid #f39c12;">
+                <h4 style="color:#7e5109; margin-top:0;">2. Deteksi</h4>
+                <p style="font-size:0.85rem;">Monitoring skor CFRSI real-time sebagai Early Warning System (EWS) untuk alokasi audit berbasis risiko.</p>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        with g3:
+            st.markdown(
+                """
+            <div style="background:#fdedec; padding:1rem; border-radius:10px; border-left:4px solid #e74c3c;">
+                <h4 style="color:#780206; margin-top:0;">3. Investigasi</h4>
+                <p style="font-size:0.85rem;">Eskalasi pelabuhan kategori Risiko Tinggi ke Inspektorat Jenderal untuk verifikasi lapangan & penindakan.</p>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        with g4:
+            st.markdown(
+                """
+            <div style="background:#eafaf1; padding:1rem; border-radius:10px; border-left:4px solid #27ae60;">
+                <h4 style="color:#196f3d; margin-top:0;">4. Evaluasi</h4>
+                <p style="font-size:0.85rem;">Umpan balik audit untuk re-kalibrasi threshold model & penanganan false-positive berulang.</p>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    # ── TAB 2: RULE-BASED RED FLAGS ──────────────────────────────
+    with tab2:
+        st.markdown("### 🚨 Analisis Deteksi Anomali Berbasis Aturan (Rule-Based)")
+        st.markdown(
+            "Menilai transaksi yang melanggar 5 aturan operasional/regulasi (*PM 93/2013*, *PM 8/2022*, & *PP 61/2009*)."
+        )
+
+        c_pie, c_scat = st.columns([1, 1])
+        with c_pie:
+            st.plotly_chart(
+                plot_red_flag_breakdown(df_analyzed), use_container_width=True
+            )
+        with c_scat:
+            st.plotly_chart(
+                plot_volume_vs_red_flag_percentage(cfrsi_df), use_container_width=True
+            )
+
+        # ── Download transaksi Red Flag (CSV) ──
+        _rf_cols = [
+            "PKK_number", "vessel_name", "port_code", "port", "service",
+            "submission", "response", "approval_minutes", "approval_hours",
+            "hour", "day", "gt",
+            "rf_quick_approval", "rf_long_duration", "rf_low_oversight",
+            "rf_gt_manipulation", "rf_same_vessel_2ports",
+            "red_flag_count",
+        ]
+        _rf_export_cols = [c for c in _rf_cols if c in df_analyzed.columns]
+        _rf_df = df_analyzed[df_analyzed["is_red_flag"] == True][_rf_export_cols].copy()
+
+        if _rf_df.empty:
+            st.info("✅ Tidak ada transaksi Red Flag untuk diunduh.")
+        else:
+            _rf_csv = _rf_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+            st.download_button(
+                f"💾 Download Transaksi Red Flag (.csv) — {_rf_df.shape[0]:,} record",
+                _rf_csv,
+                file_name="transaksi_redflag_rule_based.csv",
+                mime="text/csv",
+                key="dl_redflag_rule_based",
+            )
+            st.caption("Berisi seluruh transaksi dengan minimal 1 red flag, beserta penanda 5 kriteria (kolom rf_*).")
+
+        st.markdown("---")
+        st.markdown("#### 🔍 Detil 5 Kriteria Red Flag & Dasar Justifikasi Regulasi")
+
+        rf_expander = st.expander(
+            "📌 Klik untuk melihat perincian 5 aturan Red Flag & referensi hukum",
+            expanded=True,
+        )
+        with rf_expander:
+            st.markdown(
+                """
+            1. **Quick Approval (< 10 detik):** Berdasarkan PM 93/2013, petugas harus memverifikasi beberapa dokumen keselamatan dan kelaiklautan. Persetujuan kilat memicu risiko tidak dilakukannya verifikasi memadai (*rubber-stamping*).
+            2. **Long Duration (> 8 jam):** Durasi persetujuan melebihi standar jam kerja normal (8 jam) menciptakan celah potensi permintaan imbalan/bribes untuk mempercepat persetujuan.
+            3. **Low Oversight (00.00 – 04.00):** Pengajuan/persetujuan di luar jam operasional standar dengan tingkat pengawasan minim sering dimanfaatkan untuk menghindari atensi supervisor.
+            4. **GT Manipulation:** Modifikasi data Gross Tonnage (GT) kapal secara abnormal atau mendadak mengindikasikan potensi markdown dimensi untuk menghindari tarif PNBP.
+            5. **Same Vessel in 2 Ports (< 2 jam):** Pergerakan kapal yang sama terdaftar disetujui di 2 pelabuhan berbeda dalam jeda < 2 jam tidak realistis secara geografis/kecepatan layar (PP 61/2009).
+            """
+            )
+
+    # ── TAB 3: STATISTICAL & ML ANOMALIES ─────────────────────────
+    with tab3:
+        st.markdown("### 📐 Analisis Outlier Statistik & Machine Learning")
+
+        st_col1, st_col2 = st.columns(2)
+        with st_col1:
+            st.markdown("#### 1. Statistical Outlier Detection (Modified Z-Score)")
+            st.latex(r"T_i = \beta_0 + \beta_1 V + \beta_2 GT + \beta_3 D + \beta_4 H")
+            st.latex(r"Z_i = 0.6745 \frac{r_i - \bar{r}}{\text{MAD}} \le -3.5")
+            st.write(
+                f"• **Jumlah Outlier Residual ($Z \\le -3.5$ OR $Z \\ge 3.5$):** {summary_stats.get('stat_pkk', 0):,} transaksi ({summary_stats.get('stat_pct', 0):.1f}%)"
+            )
+            st.caption(
+                "Menyoroti deviasi residual negatif yang ekstrem (persetujuan abnormal yang jauh lebih cepat dibanding ekspektasi kondisi operasional)."
+            )
+            if summary_stats.get("stat_pkk", 0) > 0:
+                _df_stat_outliers = df_analyzed[
+                    df_analyzed["is_stat_anomaly"] == True
+                ].copy()
+                _stat_csv = _df_stat_outliers.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "💾 Download Transaksi Outlier Statistik (.csv)",
+                    _stat_csv,
+                    file_name="transaksi_outlier_statistik.csv",
+                    mime="text/csv",
+                    key="dl_stat_outliers",
+                )
+
+        with st_col2:
+            st.markdown("#### 2. Isolation Forest (Unsupervised ML)")
+            st.write(f"• **Estimators:** {IF_N_ESTIMATORS} trees | **Max Samples:** {IF_MAX_SAMPLES}")
+            st.write(
+                f"• **Contamination:** {IF_CONTAMINATION} "
+                f"({IF_CONTAMINATION:.0%} target anomali)"
+            )
+            st.write(
+                "• **Features:** Log Approval Duration, Log GT, Log Port Volume, Hour"
+            )
+            st.write(
+                f"• **Jumlah Anomali Multidimensi Terisolasi:** {summary_stats.get('ml_pkk', 0):,} transaksi ({summary_stats.get('ml_pct', 0):.1f}%)"
+            )
+            st.caption(
+                "Mendeteksi pola kombinasi fitur non-linear kompleks yang tidak terjangkau oleh aturan manual."
+            )
+            if summary_stats.get("ml_pkk", 0) > 0:
+                _df_ml_outliers = df_analyzed[
+                    df_analyzed["is_ml_anomaly"] == True
+                ].copy()
+                _ml_csv = _df_ml_outliers.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "💾 Download Transaksi Anomali Multidimensi (.csv)",
+                    _ml_csv,
+                    file_name="transaksi_anomali_multidimensi.csv",
+                    mime="text/csv",
+                    key="dl_ml_outliers",
+                )
+
+    # # ── TAB 4: GOVERNANCE & RISK TIERS ───────────────────────────
+    # with tab4:
+    #     st.markdown("### 📜 Tata Kelola Anti-Fraud & Klasifikasi Risiko")
+
+    #     st.plotly_chart(plot_risk_category_distribution(cfrsi_df), use_container_width=True)
+
+    #     st.markdown("---")
+    #     st.markdown("#### 🏛️ Penerapan 4 Pilar Strategi Anti-Fraud (OJK 2024 / Kemenhub)")
+
+    #     g1, g2, g3, g4 = st.columns(4)
+    #     with g1:
+    #         st.markdown("""
+    #         <div style="background:#eaf2f8; padding:1rem; border-radius:10px; border-left:4px solid #2980b9;">
+    #             <h4 style="color:#1a4a7a; margin-top:0;">1. Pencegahan</h4>
+    #             <p style="font-size:0.85rem;">Standardisasi verifikasi dokumen digital & pembatasan akses sistem persetujuan otomatis di luar jam kerja.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
+    #     with g2:
+    #         st.markdown("""
+    #         <div style="background:#fef9e7; padding:1rem; border-radius:10px; border-left:4px solid #f39c12;">
+    #             <h4 style="color:#7e5109; margin-top:0;">2. Deteksi</h4>
+    #             <p style="font-size:0.85rem;">Monitoring skor CFRSI real-time sebagai Early Warning System (EWS) untuk alokasi audit berbasis risiko.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
+    #     with g3:
+    #         st.markdown("""
+    #         <div style="background:#fdedec; padding:1rem; border-radius:10px; border-left:4px solid #e74c3c;">
+    #             <h4 style="color:#780206; margin-top:0;">3. Investigasi</h4>
+    #             <p style="font-size:0.85rem;">Eskalasi pelabuhan kategori Risiko Tinggi ke Inspektorat Jenderal untuk verifikasi lapangan & penindakan.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
+    #     with g4:
+    #         st.markdown("""
+    #         <div style="background:#eafaf1; padding:1rem; border-radius:10px; border-left:4px solid #27ae60;">
+    #             <h4 style="color:#196f3d; margin-top:0;">4. Evaluasi</h4>
+    #             <p style="font-size:0.85rem;">Umpan balik audit untuk re-kalibrasi threshold model & penanganan false-positive berulang.</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
