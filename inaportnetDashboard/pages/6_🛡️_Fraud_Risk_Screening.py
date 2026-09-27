@@ -210,11 +210,12 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     )
 
     # Jalankan Analisis CFRSI & Deteksi Anomali (monolit: Rule + OLS Z-Score + Isolation Forest)
+    df_raw = st.session_state["df"]
     with timed_status(
         st,
-        "🛡️ Engine Deteksi Anomali 3-Lapis (Rule-Based, OLS Z-Score, Isolation Forest)",
+        f"🛡️ Menjalankan Engine Deteksi Anomali 3-Lapis ({len(df_raw):,} record: Rule-Based, OLS Z-Score, Isolation Forest) — estimasi ~2-4 dtk",
+        "✅ Evaluasi Deteksi Anomali 3-Lapis selesai",
     ):
-        df_raw = st.session_state["df"]
         df_analyzed, cfrsi_df = compute_fraud_risk_analysis(df_raw)
 
     summary_stats = get_fraud_national_summary(df_analyzed, cfrsi_df)

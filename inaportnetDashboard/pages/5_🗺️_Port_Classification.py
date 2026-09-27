@@ -70,7 +70,7 @@ def compute_classification(df_hash: pd.DataFrame) -> pd.DataFrame:
     result  = classify_quadrant(perf)
     return result
 
-with timed_status(st, "🗺️ Menghitung indeks klasifikasi pelabuhan"):
+with timed_status(st, f"🗺️ Menghitung indeks klasifikasi 4 kuadran pelabuhan ({len(df):,} record)", "✅ Klasifikasi kuadran pelabuhan siap"):
     df_classified = compute_classification(df)
 
 if df_classified.empty:

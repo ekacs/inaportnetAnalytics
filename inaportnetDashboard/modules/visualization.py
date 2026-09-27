@@ -235,27 +235,35 @@ def plot_service_distribution(df_dist: pd.DataFrame) -> go.Figure:
 
 @st.cache_data
 def plot_approval_histogram(df: pd.DataFrame) -> go.Figure:
-    """Histogram distribusi waktu persetujuan (< P95)."""
+    """Histogram distribusi waktu persetujuan (< P95) dengan pre-binning numpy super cepat."""
     if df.empty or "approval_minutes" not in df.columns:
         return go.Figure()
 
     data = df["approval_minutes"].dropna()
-    p95  = data.quantile(0.95)
-    data_p95 = data[data < p95]
+    p95 = float(data.quantile(0.95))
+    data_p95 = data[data < p95].to_numpy()
+    if len(data_p95) == 0:
+        return go.Figure()
+
+    counts, bin_edges = np.histogram(data_p95, bins=80)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+    bin_width = float(bin_edges[1] - bin_edges[0])
 
     fig = go.Figure()
-    fig.add_trace(go.Histogram(
-        x=data_p95,
-        nbinsx=80,
+    fig.add_trace(go.Bar(
+        x=bin_centers,
+        y=counts,
+        width=bin_width * 0.95,
         marker_color=COLORS["secondary"],
-        marker_line=dict(color="white", width=0.3),
         name="Frekuensi",
         hovertemplate="Interval: %{x:.1f} mnt<br>Count: %{y:,}<extra></extra>",
     ))
-    fig.add_vline(x=data_p95.mean(),   line_dash="dash", line_color=COLORS["danger"],
-                  annotation_text=f"Mean={data_p95.mean():.1f}", annotation_position="top right")
-    fig.add_vline(x=data_p95.median(), line_dash="solid", line_color=COLORS["accent"],
-                  annotation_text=f"Median={data_p95.median():.1f}", annotation_position="top left")
+    mean_val = float(np.mean(data_p95))
+    med_val = float(np.median(data_p95))
+    fig.add_vline(x=mean_val, line_dash="dash", line_color=COLORS["danger"],
+                  annotation_text=f"Mean={mean_val:.1f}", annotation_position="top right")
+    fig.add_vline(x=med_val, line_dash="solid", line_color=COLORS["accent"],
+                  annotation_text=f"Median={med_val:.1f}", annotation_position="top left")
 
     _base_layout(fig, "Distribusi Waktu Persetujuan PKK (< Persentil 95)", height=380)
     fig.update_xaxes(title="Waktu Persetujuan (menit)")

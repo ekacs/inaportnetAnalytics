@@ -14,7 +14,7 @@ from modules.scraper      import run_full_scraping, load_port_reference
 from modules.preprocessing import (
     preprocess, validate_uploaded_file, drop_unnamed_columns,
 )
-from modules.progress import make_fetch_progress, make_insert_progress, timed_status, fmt_dur
+from modules.progress import make_fetch_progress, make_insert_progress, timed_status, fmt_dur, render_load_summary_card
 from modules.database      import (
     insert_pkk_records, fetch_pkk_records, is_connected,
     get_database_stats, get_db_status_info, deduplicate_dataframe,
@@ -75,32 +75,6 @@ with st.sidebar:
     db_info = get_db_status_info()
     st.markdown("**Status Database**")
     st.success(f"{db_info['label']}")
-
-
-    # ── Database info ──
-    import modules.database as _db_mod
-    import sqlite3 as _sqlite3
-    _db_path = _db_mod.SQLITE_DB_PATH
-    if os.path.exists(_db_path):
-        try:
-            _conn = _sqlite3.connect(_db_path, timeout=30)
-            try:
-                _conn.execute("PRAGMA busy_timeout = 30000;")
-            except Exception:
-                pass
-            _cur = _conn.cursor()
-            _cur.execute("SELECT COUNT(*) FROM pkk_records")
-            _total = _cur.fetchone()[0]
-            _est = _total / 150000
-        except Exception:
-            pass
-        finally:
-            try:
-                _conn.close()
-            except Exception:
-                pass
-    #    _est_txt = f"~{_est:.0f} detik" if _est < 60 else f"~{_est/60:.1f} menit"
-    #    st.info(f"📦 **Database:** {_total:,} record | ⏱️ **Estimasi load:** {_est_txt} | 💡 *Data siap, page lain bisa dibuka.*")
 
 
     if "df" in st.session_state and not st.session_state["df"].empty:
@@ -604,6 +578,7 @@ with tab_db:
         def _cb_wrap(done: int, total: int, phase: str):
             _cb_fetch(done, total, phase)
 
+        _t_fetch0 = time.perf_counter()
         df_db = fetch_pkk_records(
             port_codes=filter_codes_db if filter_codes_db else None,
             year=year_db,
@@ -611,6 +586,7 @@ with tab_db:
             progress_callback=_cb_wrap,
             chunk_size=50000,
         )
+        _dur_fetch = time.perf_counter() - _t_fetch0
         _bar.progress(1.0, text="⚙️ Preprocessing...")
         _status.info(f"⚙️ Preprocessing... • ⏱️ {_fmt_dur(time.perf_counter() - _t_load0)}")
 
@@ -640,55 +616,112 @@ with tab_db:
                             if "angkutan" in df_all.columns:
                                 st.write("Nilai 'angkutan' yang ada:", df_all["angkutan"].unique().tolist())
         else:
+            _t_prep0 = time.perf_counter()
             df_db = preprocess(df_db)
+            _dur_prep = time.perf_counter() - _t_prep0
+            _dur_total = time.perf_counter() - _t_load0
+            _rate = (len(df_db) / _dur_total) if _dur_total > 0 else 0
+
             st.session_state["df"] = df_db
-            _dur = time.perf_counter() - _t_load0
+            st.session_state["last_db_load_info"] = {
+                "records": len(df_db),
+                "source": actual_source_label,
+                "dur_total": _dur_total,
+                "dur_fetch": _dur_fetch,
+                "dur_prep": _dur_prep,
+                "rate": _rate,
+                "year": year_db,
+                "angkutan": angkutan_db,
+                "ports": filter_port_db if filter_port_db else ["Semua Pelabuhan"],
+                "timestamp": time.time(),
+            }
             _bar.progress(1.0, text="✅ Selesai")
             _status.success(
                 f"✅ **{len(df_db):,} record** dimuat dari {actual_source_label}"
-                f" dalam **{_fmt_dur(_dur)}**."
+                f" dalam **{_fmt_dur(_dur_total)}**."
             )
-            with st.expander("🔍 Preview Data"):
-                show_df(df_db.head(20), width="stretch")
-            # Banner navigasi setelah load dari DB
-            st.markdown("""
-<div style="background:linear-gradient(90deg,#1a4a7a,#2471a3);color:white;padding:1rem 1.2rem;
-            border-radius:10px;margin-top:0.5rem;font-size:0.95rem;line-height:1.7;">
-✅ <b>Data berhasil dimuat ke sesi!</b> Lanjutkan ke halaman analisis:<br>
-&nbsp;&nbsp;🚦 <b>Traffic Overview</b> &nbsp;|&nbsp;
-📋 <b>Service Performance</b> &nbsp;|&nbsp;
-🗺️ <b>Port Classification</b> &nbsp;|&nbsp;
-🛡️ <b>Fraud Risk Screening</b>
-</div>
-""", unsafe_allow_html=True)
             st.rerun()
+
+    # ── Ringkasan Estimasi Waktu & Status Muat Data ──
+    if st.session_state.get("last_db_load_info"):
+        render_load_summary_card(st, st.session_state["last_db_load_info"])
+
+        st.markdown("##### 🚀 Lanjutkan ke Tahapan Analisis:")
+        nav_c1, nav_c2, nav_c3, nav_c4, nav_c5 = st.columns([1.2, 1.2, 1.2, 1.2, 0.9])
+        with nav_c1:
+            st.page_link("pages/3_🚦_Traffic_Overview.py", label="Traffic Overview", icon="🚦")
+        with nav_c2:
+            st.page_link("pages/4_📋_Service_Performance.py", label="Performance", icon="📋")
+        with nav_c3:
+            st.page_link("pages/5_🗺️_Port_Classification.py", label="Classification", icon="🗺️")
+        with nav_c4:
+            st.page_link("pages/6_🛡️_Fraud_Risk_Screening.py", label="Fraud Screening", icon="🛡️")
+        with nav_c5:
+            if st.button("✕ Tutup Info", key="close_db_load_summary", width="stretch"):
+                st.session_state["last_db_load_info"] = None
+                st.rerun()
+
+        if "df" in st.session_state and st.session_state["df"] is not None and not st.session_state["df"].empty:
+            with st.expander("🔍 Preview Data yang Dimuat", expanded=False):
+                show_df(st.session_state["df"].head(20), width="stretch")
 
 # ── Fitur: Tampilkan file di ./data & Analisis Kualitas Data ──
     st.markdown("---")
     st.markdown('<div class="section-header">📁 File Hasil Scraping di Folder Data</div>', unsafe_allow_html=True)
 
+    @st.cache_data(ttl=20, show_spinner=False)
+    def _scan_data_folder_cached(data_dir: str):
+        if not os.path.isdir(data_dir):
+            return []
+        files_data = [f for f in os.listdir(data_dir)
+                      if os.path.isfile(os.path.join(data_dir, f))
+                      and not f.startswith(".")
+                      and f.endswith((".csv", ".xlsx", ".xls", ".parquet"))]
+        info_rows = []
+        import datetime as _dt
+        for fname in sorted(files_data):
+            fpath = os.path.join(data_dir, fname)
+            fsize = os.path.getsize(fpath)
+            ftime = os.path.getmtime(fpath)
+            info_rows.append({
+                "File": fname,
+                "Ukuran": f"{fsize / 1024:.1f} KB" if fsize < 1_048_576 else f"{fsize / 1_048_576:.1f} MB",
+                "Terakhir Diubah": _dt.datetime.fromtimestamp(ftime).strftime("%Y-%m-%d %H:%M"),
+            })
+        return info_rows
+
+    @st.cache_data(show_spinner=False)
+    def _compute_quality_stats_cached(df: pd.DataFrame):
+        err_count = 0
+        null_count = 0
+        dup_count = 0
+        if "submission" in df.columns:
+            err_count += int(df["submission"].isna().sum())
+        if "response" in df.columns:
+            err_count += int(df["response"].isna().sum())
+        if "approval_minutes" in df.columns:
+            err_count += int((df["approval_minutes"] < 0).sum())
+        if "pkk_number" in df.columns:
+            err_count += int(df["pkk_number"].isna().sum() + (df["pkk_number"].str.strip() == "").sum())
+            dup_count = int(df.duplicated(subset=["pkk_number"], keep="first").sum())
+        critical_cols = [c for c in ["submission", "response", "port_code", "pkk_number", "vessel_name"]
+                         if c in df.columns]
+        if critical_cols:
+            null_count = int(df[critical_cols].isna().any(axis=1).sum())
+        return {
+            "total": len(df),
+            "err_count": err_count,
+            "null_count": null_count,
+            "dup_count": dup_count,
+        }
+
     _data_dir_scan = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-    if os.path.isdir(_data_dir_scan):
-        _files_data = [f for f in os.listdir(_data_dir_scan)
-                       if os.path.isfile(os.path.join(_data_dir_scan, f))
-                       and not f.startswith(".")
-                       and f.endswith((".csv", ".xlsx", ".xls", ".parquet"))]
-        if _files_data:
-            st.caption(f"Ditemukan **{len(_files_data)} file** di folder `data/`:")
-            _file_info_rows = []
-            for _fname in sorted(_files_data):
-                _fpath = os.path.join(_data_dir_scan, _fname)
-                _fsize = os.path.getsize(_fpath)
-                _ftime = os.path.getmtime(_fpath)
-                import datetime as _dt
-                _file_info_rows.append({
-                    "File": _fname,
-                    "Ukuran": f"{_fsize / 1024:.1f} KB" if _fsize < 1_048_576 else f"{_fsize / 1_048_576:.1f} MB",
-                    "Terakhir Diubah": _dt.datetime.fromtimestamp(_ftime).strftime("%Y-%m-%d %H:%M"),
-                })
-            st.dataframe(pd.DataFrame(_file_info_rows), width="stretch", hide_index=True)
-        else:
-            st.info("📂 Belum ada file CSV/Excel/Parquet di folder `data/`.")
+    _file_info_rows = _scan_data_folder_cached(_data_dir_scan)
+    if _file_info_rows:
+        st.caption(f"Ditemukan **{len(_file_info_rows)} file** di folder `data/`:")
+        st.dataframe(pd.DataFrame(_file_info_rows), width="stretch", hide_index=True)
+    elif os.path.isdir(_data_dir_scan):
+        st.info("📂 Belum ada file CSV/Excel/Parquet di folder `data/`.")
     else:
         st.info("📂 Folder `data/` belum tersedia.")
 
@@ -696,23 +729,11 @@ with tab_db:
     if "df" in st.session_state and st.session_state["df"] is not None and not st.session_state["df"].empty:
         st.markdown("---")
         st.markdown('<div class="section-header">🔍 Analisis Kualitas Data</div>', unsafe_allow_html=True)
-        _df_quality = st.session_state["df"].copy()
-        _err_count = 0
-        _null_count = 0
-        _dup_count = 0
-        if "submission" in _df_quality.columns:
-            _err_count += _df_quality["submission"].isna().sum()
-        if "response" in _df_quality.columns:
-            _err_count += _df_quality["response"].isna().sum()
-        if "approval_minutes" in _df_quality.columns:
-            _err_count += (_df_quality["approval_minutes"] < 0).sum()
-        if "pkk_number" in _df_quality.columns:
-            _err_count += _df_quality["pkk_number"].isna().sum() + (_df_quality["pkk_number"].str.strip() == "").sum()
-            _dup_count = _df_quality.duplicated(subset=["pkk_number"], keep="first").sum()
-        _critical_cols = [c for c in ["submission", "response", "port_code", "pkk_number", "vessel_name"]
-                          if c in _df_quality.columns]
-        if _critical_cols:
-            _null_count = _df_quality[_critical_cols].isna().any(axis=1).sum()
+        _df_quality = st.session_state["df"]
+        _qstats = _compute_quality_stats_cached(_df_quality)
+        _err_count = _qstats["err_count"]
+        _null_count = _qstats["null_count"]
+        _dup_count = _qstats["dup_count"]
         st.caption(
             f"📊 Total: **{len(_df_quality):,}** | "
             f"🚨 Error: **{_err_count:,}** | "
@@ -843,49 +864,77 @@ with tab_export:
     else:
         st.success(f"✅ Data siap diekspor: **{len(df_current):,} record**")
 
+        @st.cache_data(show_spinner=False)
+        def _prepare_csv_export(df: pd.DataFrame) -> bytes:
+            return df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+
+        @st.cache_data(show_spinner=False)
+        def _prepare_excel_export(df: pd.DataFrame) -> bytes:
+            excel_buf = io.BytesIO()
+            with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+                df.to_excel(writer, sheet_name="Data PKK", index=False)
+                if "port_code" in df.columns and "approval_minutes" in df.columns:
+                    from modules.analysis import compute_port_summary
+                    summary = compute_port_summary(df)
+                    if not summary.empty:
+                        summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
+            return excel_buf.getvalue()
+
         col_ex1, col_ex2 = st.columns(2)
 
         # Export CSV
         with col_ex1:
             st.markdown("#### 📄 Export CSV")
-            with timed_status(st, "📄 Menyiapkan file CSV"):
-                csv_buf = df_current.to_csv(index=False, encoding="utf-8-sig")
-            st.download_button(
-                label="⬇️ Download CSV",
-                data=csv_buf,
-                file_name="inaportnet_pkk_2025.csv",
-                mime="text/csv",
-                width="stretch",
-            )
+            st.caption(f"Format teks CSV cepat & kompatibel dengan berbagai tools spreadsheet/analisis. Estimasi: **~0.5–1 detik** ({len(df_current):,} record).")
+            if st.session_state.get("_csv_cache_len") != len(df_current):
+                st.session_state["_ready_csv"] = False
+
+            if not st.session_state.get("_ready_csv"):
+                if st.button("📄 Siapkan File CSV", key="btn_prep_csv", width="stretch"):
+                    _t_csv0 = time.perf_counter()
+                    with st.spinner("📄 Mengonversi dataset ke format CSV (UTF-8)..."):
+                        st.session_state["_csv_bytes"] = _prepare_csv_export(df_current)
+                        st.session_state["_csv_cache_len"] = len(df_current)
+                        st.session_state["_csv_dur"] = time.perf_counter() - _t_csv0
+                        st.session_state["_ready_csv"] = True
+                        st.rerun()
+            else:
+                _dur_csv_str = f" dalam {st.session_state.get('_csv_dur', 0.5):.2f} dtk" if "_csv_dur" in st.session_state else ""
+                st.success(f"✅ File CSV siap diunduh{_dur_csv_str} ({len(st.session_state.get('_csv_bytes', b'')) / 1024 / 1024:.2f} MB)")
+                st.download_button(
+                    label="⬇️ Download CSV",
+                    data=st.session_state["_csv_bytes"],
+                    file_name="inaportnet_pkk_2025.csv",
+                    mime="text/csv",
+                    width="stretch",
+                )
 
         # Export Excel
         with col_ex2:
             st.markdown("#### 📊 Export Excel")
-            if df_current.empty:
-                st.info("Data kosong — tidak ada yang bisa diekspor.")
+            st.caption(f"File Excel menyertakan lembar Data PKK dan Ringkasan Pelabuhan. Estimasi: **~2–5 detik** ({len(df_current):,} record).")
+            if st.session_state.get("_excel_cache_len") != len(df_current):
+                st.session_state["_ready_excel"] = False
+
+            if not st.session_state.get("_ready_excel"):
+                if st.button("📊 Siapkan File Excel", key="btn_prep_excel", width="stretch"):
+                    _t_xls0 = time.perf_counter()
+                    with st.spinner("📊 Menyusun berkas Excel terstruktur (openpyxl)..."):
+                        st.session_state["_excel_bytes"] = _prepare_excel_export(df_current)
+                        st.session_state["_excel_cache_len"] = len(df_current)
+                        st.session_state["_excel_dur"] = time.perf_counter() - _t_xls0
+                        st.session_state["_ready_excel"] = True
+                        st.rerun()
             else:
-                try:
-                    with timed_status(st, "📊 Menyusun file Excel (data + ringkasan)"):
-                        excel_buf = io.BytesIO()
-                        with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                            df_current.to_excel(writer, sheet_name="Data PKK", index=False)
-
-                            if "port_code" in df_current.columns and "approval_minutes" in df_current.columns:
-                                from modules.analysis import compute_port_summary
-                                summary = compute_port_summary(df_current)
-                                if not summary.empty:
-                                    summary.to_excel(writer, sheet_name="Ringkasan Pelabuhan", index=False)
-
-                        excel_buf.seek(0)
-                    st.download_button(
-                        label="⬇️ Download Excel",
-                        data=excel_buf,
-                        file_name="inaportnet_pkk_2025.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        width="stretch",
-                    )
-                except Exception as e:
-                    st.warning(f"⚠️ Gagal membuat file Excel: {str(e)[:200]}")
+                _dur_xls_str = f" dalam {st.session_state.get('_excel_dur', 2.0):.2f} dtk" if "_excel_dur" in st.session_state else ""
+                st.success(f"✅ File Excel siap diunduh{_dur_xls_str} ({len(st.session_state.get('_excel_bytes', b'')) / 1024 / 1024:.2f} MB)")
+                st.download_button(
+                    label="⬇️ Download Excel (.xlsx)",
+                    data=st.session_state["_excel_bytes"],
+                    file_name="inaportnet_pkk_2025.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    width="stretch",
+                )
 
         # Preview kolom
         st.markdown("#### 🔍 Preview Data")

@@ -226,7 +226,10 @@ def render_data_filters(
     """
     with st.sidebar:
         if not df.empty and "port" in df.columns:
-            all_ports = sorted(df["port"].dropna().unique().tolist())
+            if "_cache_all_ports" not in st.session_state or st.session_state.get("_cache_ports_len") != len(df):
+                st.session_state["_cache_all_ports"] = sorted(df["port"].dropna().unique().tolist())
+                st.session_state["_cache_ports_len"] = len(df)
+            all_ports = st.session_state["_cache_all_ports"]
             selected_ports = st.multiselect(
                 "🏗️ Filter Pelabuhan",
                 options=all_ports,
@@ -237,7 +240,10 @@ def render_data_filters(
             selected_ports = []
 
         if not df.empty and "angkutan" in df.columns:
-            angkutan_options = df["angkutan"].dropna().unique().tolist()
+            if "_cache_all_ang" not in st.session_state or st.session_state.get("_cache_ang_len") != len(df):
+                st.session_state["_cache_all_ang"] = sorted(df["angkutan"].dropna().unique().tolist())
+                st.session_state["_cache_ang_len"] = len(df)
+            angkutan_options = st.session_state["_cache_all_ang"]
             selected_angkutan = st.multiselect(
                 "🚢 Filter Angkutan",
                 options=angkutan_options,

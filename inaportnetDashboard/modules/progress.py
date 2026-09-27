@@ -118,3 +118,84 @@ def timed_status(st, label, done_label=None):
         dur = time.perf_counter() - t0
         msg = done_label or f"{label} selesai"
         box.success(f"{msg} dalam **{fmt_dur(dur)}**.")
+
+
+def render_load_summary_card(st, load_info: dict) -> None:
+    """Render kartu ringkasan estimasi waktu & progres muat data profesional.
+
+    Menggantikan animasi canvas dino yang berat dengan kartu metrik performa tinggi,
+    bersih, cepat, dan selaras dengan tema maritim Inaportnet.
+    """
+    if not load_info:
+        return
+
+    dur_total = float(load_info.get("dur_total", 0.0))
+    dur_fetch = float(load_info.get("dur_fetch", 0.0))
+    dur_prep  = float(load_info.get("dur_prep", 0.0))
+    records   = int(load_info.get("records", 0))
+    rate      = float(load_info.get("rate", 0.0))
+    source    = str(load_info.get("source", "SQLite (Lokal)"))
+    year      = str(load_info.get("year", "-"))
+    angkutan  = str(load_info.get("angkutan", "-"))
+    ports     = load_info.get("ports", ["Semua Pelabuhan"])
+
+    # Format durasi
+    def _sec_str(sec: float) -> str:
+        if sec < 1.0:
+            return f"{sec * 1000:.0f} ms"
+        return f"{sec:.2f} dtk"
+
+    if isinstance(ports, list):
+        if len(ports) <= 3:
+            ports_str = ", ".join(ports)
+        else:
+            ports_str = f"{ports[0]}, {ports[1]} (+{len(ports)-2} lainnya)"
+    else:
+        ports_str = str(ports)
+
+    # Performa badge
+    if dur_total > 0 and rate >= 50000:
+        perf_badge = '<span style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; border-radius:12px; padding:2px 8px; font-size:0.75rem; font-weight:600;">⚡ Kecepatan Tinggi</span>'
+    else:
+        perf_badge = '<span style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; border-radius:12px; padding:2px 8px; font-size:0.75rem; font-weight:600;">⏱️ Waktu Standar</span>'
+
+    card_html = f"""
+<div style="background: white; border: 1px solid #cbd5e1; border-left: 5px solid #0284c7;
+            border-radius: 10px; padding: 12px 16px; margin: 0.8rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom: 10px;">
+        <div>
+            <div style="font-size:0.96rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                <span>✅ Data Berhasil Dimuat dari {source}</span>
+                {perf_badge}
+            </div>
+            <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">
+                Tahun: <b>{year}</b> • Angkutan: <b>{angkutan}</b> • Pelabuhan: <i>{ports_str}</i>
+            </div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:4px 10px; text-align:right;">
+            <div style="font-size:0.72rem; color:#64748b;">TOTAL RECORD</div>
+            <div style="font-size:1.15rem; font-weight:800; color:#0284c7;">{records:,} <span style="font-size:0.75rem; font-weight:400; color:#64748b;">baris</span></div>
+        </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px; text-align:center;">
+            <div style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase;">⏱️ Total Waktu</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#0f172a; margin-top:2px;">{_sec_str(dur_total)}</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px; text-align:center;">
+            <div style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase;">📥 Query SQLite</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#0284c7; margin-top:2px;">{_sec_str(dur_fetch)}</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px; text-align:center;">
+            <div style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase;">⚙️ Preprocessing</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#059669; margin-top:2px;">{_sec_str(dur_prep)}</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px; text-align:center;">
+            <div style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase;">⚡ Throughput</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#7c3aed; margin-top:2px;">~{rate:,.0f} <span style="font-size:0.7rem; font-weight:400;">/dtk</span></div>
+        </div>
+    </div>
+</div>
+"""
+    st.markdown(card_html, unsafe_allow_html=True)
+

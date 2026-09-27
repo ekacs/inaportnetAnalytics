@@ -16,6 +16,7 @@ from modules.visualization import (
 )
 from modules.database import is_connected, get_db_status_info
 from modules.theme import render_theme_selector
+from modules.progress import timed_status
 from modules.ui import (
     page_css, render_sidebar_nav, load_session_df, render_data_filters,
 )
@@ -59,8 +60,7 @@ if df.empty:
     st.stop()
 
 # ── KPI Cards ─────────────────────────────────────────────────
-from modules.progress import timed_status
-with timed_status(st, "📊 Menghitung statistik nasional"):
+with timed_status(st, f"📊 Menghitung statistik nasional ({len(df):,} record)", "✅ Statistik nasional siap"):
     stats = get_national_stats(df)
 
 c1, c2, c3, c4 = st.columns(4)

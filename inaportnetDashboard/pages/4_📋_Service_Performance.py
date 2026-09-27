@@ -66,7 +66,7 @@ if df.empty:
     st.stop()
 
 # ── KPI Cards ─────────────────────────────────────────────────
-with timed_status(st, "📊 Menghitung statistik & SLA nasional"):
+with timed_status(st, f"📊 Menghitung statistik & SLA nasional ({len(df):,} record)", "✅ Analisis performa & SLA siap"):
     stats = get_national_stats(df)
     sla_rate = stats.get("sla_rate", 0)
 mean_min = stats.get("mean_minutes", 0)
